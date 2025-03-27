@@ -3,7 +3,7 @@
   "main": "index.js",
   "version": "1.0.0",
   "scripts": {
-    "dev": "expo start -c",
+    "dev": "expo start",
     "dev:web": "expo start -c --web",
     "dev:android": "expo start -c --android",
     "android": "expo start -c --android",
@@ -15,8 +15,10 @@
   "dependencies": {
     "@react-navigation/native": "^7.0.0",
     "@rn-primitives/avatar": "~1.1.0",
+    "@rn-primitives/checkbox": "^1.1.0",
     "@rn-primitives/portal": "~1.1.0",
     "@rn-primitives/progress": "~1.1.0",
+    "@rn-primitives/separator": "^1.1.0",
     "@rn-primitives/slot": "~1.1.0",
     "@rn-primitives/tooltip": "~1.1.0",
     "@rn-primitives/types": "~1.1.0",
@@ -51,7 +53,11 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
+    "@react-native-reusables/cli": "^0.3.6",
     "@types/react": "~18.3.12",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "patch-package": "^8.0.0",
+    "postinstall-postinstall": "^2.1.0",
     "typescript": "^5.3.3"
   },
   "private": true
