@@ -58,18 +58,14 @@ export default function RootLayout() {
       {/* The StatusBar adapts to light/dark theme accordingly */}
       <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
 
-      {/* 
-        CHANGE: 'initialRouteName' set to 'index' 
-        so that your 'index.tsx' will load first 
-      */}
+      {/* Our main stack navigator - keeping index as initialRouteName */}
       <Stack initialRouteName="index">
-        {/* 'index.tsx' instantly redirects to '/user-type' */}
+        {/* Onboarding screen that displays slides */}
         <Stack.Screen
           name="index"
           options={{
-            title: "Start", 
+            title: "Onboarding", 
             headerShown: false,
-            headerRight: () => <ThemeToggle />,
           }}
         />
 
