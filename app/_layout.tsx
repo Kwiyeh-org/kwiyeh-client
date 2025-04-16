@@ -60,7 +60,7 @@ export default function RootLayout() {
 
       {/* Our main stack navigator - keeping index as initialRouteName */}
       <Stack initialRouteName="index">
-        {/* Onboarding screen that displays slides */}
+        {/* Onboarding screen that displays slides - first screen users see */}
         <Stack.Screen
           name="index"
           options={{
@@ -69,7 +69,7 @@ export default function RootLayout() {
           }}
         />
 
-        {/* Where the user chooses client or talent */}
+        {/* Where the user chooses client or talent - comes after onboarding */}
         <Stack.Screen
           name="user-type"
           options={{
@@ -79,7 +79,7 @@ export default function RootLayout() {
           }}
         />
 
-        {/* Client signup */}
+        {/* Client signup - comes after choosing client role */}
         <Stack.Screen
           name="signup-client"
           options={{
@@ -89,13 +89,49 @@ export default function RootLayout() {
           }}
         />
 
-        {/* Talent signup */}
+        {/* Client login - accessible from client signup */}
+        <Stack.Screen
+          name="login-client"
+          options={{
+            title: "Client Login",
+            headerShown: false,
+          }}
+        />
+
+        {/* Client Dashboard - after successful client login */}
+        <Stack.Screen
+          name="client-dashboard"
+          options={{
+            title: "Client Dashboard",
+            headerShown: false,
+          }}
+        />
+
+        {/* Talent signup - comes after choosing talent role */}
         <Stack.Screen
           name="signup-talent"
           options={{
             title: "Talent Signup",
             headerShown: false,
             headerRight: () => <ThemeToggle />,
+          }}
+        />
+
+        {/* Talent login - accessible from talent signup */}
+        <Stack.Screen
+          name="login-talent"
+          options={{
+            title: "Talent Login",
+            headerShown: false,
+          }}
+        />
+
+        {/* Talent Skill Form - after successful talent login */}
+        <Stack.Screen
+          name="talent-skillForm"
+          options={{
+            title: "Talent Skills",
+            headerShown: false,
           }}
         />
 
