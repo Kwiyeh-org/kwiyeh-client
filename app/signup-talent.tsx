@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
   ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -194,6 +195,19 @@ export default function SignupTalent() {
             <Text className="mx-4 text-black opacity-50">or</Text>
             <View className="flex-1 h-px bg-black opacity-20" />
           </View>
+
+ {/* google button */}
+          < Button
+  className="flex-row items-center justify-center bg-transparent py-5 px-6 rounded-full border border-gray-300 mb-4" 
+>
+  <Image 
+    source={require("@/assets/images/google.png")} 
+    style={{ width: 20, height: 20, marginRight: 12 }}
+    resizeMode="contain"
+  />
+ <Text className="text-base font-medium text-black">Sign up with Google</Text>
+</Button>
+
         </View>
       </ScrollView>
     </ImageBackground>

@@ -1,4 +1,4 @@
- // app/signup-client.tsx
+// app/signup-client.tsx
 
 import React, { useState } from "react";
 import {
@@ -7,14 +7,17 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
   ImageBackground,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import CountrySelect, { Country } from "~/components/country-component/CountrySelect";
-import Entypo from '@expo/vector-icons/Entypo';
+import CountrySelect, {
+  Country,
+} from "~/components/country-component/CountrySelect";
+import Entypo from "@expo/vector-icons/Entypo";
 
 export default function SignupClient() {
   const router = useRouter();
@@ -53,7 +56,7 @@ export default function SignupClient() {
       Alert.alert("Error", "Please agree to terms and conditions");
       return;
     }
-    
+
     // Navigate to client dashboard after successful signup
     router.push("/client-dashboard");
   };
@@ -74,7 +77,8 @@ export default function SignupClient() {
     code: "US",
     flag: "🇺🇸",
   };
-  const [selectedCountry, setSelectedCountry] = useState<Country>(initialCountry);
+  const [selectedCountry, setSelectedCountry] =
+    useState<Country>(initialCountry);
 
   return (
     <ImageBackground
@@ -82,7 +86,7 @@ export default function SignupClient() {
       style={{ flex: 1 }}
       resizeMode="cover"
     >
-      <ScrollView 
+      <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
       >
@@ -95,7 +99,9 @@ export default function SignupClient() {
           {/* Header */}
           <View className="mb-8">
             <Text className="text-6xl font-bold text-black mb-2">Sign up</Text>
-            <Text className="text-xl text-black">Create your Kwiyeh account</Text>
+            <Text className="text-xl text-black">
+              Create your Kwiyeh account
+            </Text>
           </View>
 
           {/* Input Fields with increased spacing */}
@@ -151,7 +157,9 @@ export default function SignupClient() {
               placeholder="Confirm password"
               secureTextEntry
               value={formData.confirmPassword}
-              onChangeText={(text) => handleInputChange("confirmPassword", text)}
+              onChangeText={(text) =>
+                handleInputChange("confirmPassword", text)
+              }
               className="bg-white rounded-xl px-4 py-3 text-base border border-[#90EE90]"
               placeholderTextColor="#A0A0A0"
             />
@@ -197,6 +205,19 @@ export default function SignupClient() {
             <Text className="mx-4 text-black opacity-50">or</Text>
             <View className="flex-1 h-px bg-black opacity-20" />
           </View>
+
+          {/* google button */}
+          < Button
+  className="flex-row items-center justify-center bg-transparent py-5 px-6 rounded-full border border-gray-300 mb-4" 
+>
+  <Image 
+    source={require("@/assets/images/google.png")} 
+    style={{ width: 20, height: 20, marginRight: 12 }}
+    resizeMode="contain"
+  />
+ <Text className="text-base font-medium text-black">Sign up with Google</Text>
+</Button>
+          
         </View>
       </ScrollView>
     </ImageBackground>

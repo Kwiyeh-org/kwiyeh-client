@@ -235,34 +235,17 @@ export default function IndexScreen() {
                     Implementing the draft's desktop text slide approach
                 ====================================================== */}
                 {isDesktop ? (
-                  // Desktop view: Use a flex container that controls horizontal padding and vertical spacing.
                   <View
-                    style={{
-                      flex: 1,
-                      paddingHorizontal: 50, // Applies uniform horizontal spacing
-                      justifyContent: "flex-start", // Align children from the top
-                      paddingTop: 30, // Overall top padding for the desktop container
-                    }}
+              className={`mt-20 w-full flex flex-row ${index === 1 && "justify-end"}`}
                   >
-                    {/* Custom positioning using the function that applies styles from slides array */}
-                    <View style={getDesktopContentStyle(index)}>
+                    <View className={`flex flex-col w-[45vw] ${index === 1 && "items-end w-[65vw]"} px-10 gap-6 `}>
                       <Text
-                        style={{
-                          fontSize: 32, // Approximately "text-4xl"
-                          fontWeight: "bold",
-                          marginBottom: 16,
-                          textAlign: slide.textAlign as "left" | "center" | "right" | "auto",
-                        }}
-                        className="font-bold text-4xl mb-4 text-red-500"
+                        className={`font-bold text-7xl mb-4 ${index === 1 && "text-6xl text-right"}`}
                       >
                         {slide.title}
                       </Text>
                       <Text
-                        style={{
-                          fontSize: 20, // Approximately "text-xl"
-                          textAlign: slide.textAlign as "left" | "center" | "right" | "auto",
-                        }}
-                        className="text-xl text-left"
+                        className={`font-normal text-3xl w-4/5 ${index===1 && "text-2xl text-right"}`}
                       >
                         {slide.description}
                       </Text>
