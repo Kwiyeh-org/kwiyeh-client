@@ -9,9 +9,7 @@ import { Button } from "~/components/ui/button";
 export default function ClientDashboard() {
   const router = useRouter();
 
-//   const handleLogout = () => {
-//     router.replace("/login-client");
-//   };
+ 
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -22,7 +20,7 @@ export default function ClientDashboard() {
         </Text>
         <Button 
           className="bg-green-800 py-3 px-6 rounded-full"
-        //   onPress={handleLogout}
+         
         >
           <Text className="text-white font-semibold">Logout</Text>
         </Button>

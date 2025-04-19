@@ -1,6 +1,6 @@
  // app/index.tsx    onboarding screens
 
- // app/index.tsx    onboarding screens
+  
 
 import React, { useState, useRef } from "react";
 import {

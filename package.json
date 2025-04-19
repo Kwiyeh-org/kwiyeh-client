@@ -13,6 +13,7 @@
     "postinstall": "npx tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css"
   },
   "dependencies": {
+    "@react-native-google-signin/google-signin": "^13.2.0",
     "@react-navigation/native": "^7.0.0",
     "@rn-primitives/avatar": "~1.1.0",
     "@rn-primitives/checkbox": "^1.1.0",
@@ -36,6 +37,7 @@
     "expo-system-ui": "~4.0.7",
     "expo-web-browser": "~14.0.2",
     "firebase": "^11.5.0",
+    "formik": "^2.4.6",
     "lucide-react-native": "^0.378.0",
     "nativewind": "^4.1.23",
     "react": "18.3.1",
