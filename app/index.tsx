@@ -1,7 +1,6 @@
  // app/index.tsx    onboarding screens
 
   
-
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -253,7 +252,7 @@ export default function IndexScreen() {
                   </View>
                 ) : (
                   // Mobile view: Retain the original container
-                  <View className={`flex flex-col ${index===1 && "items-center"} ${index===2 && "items-end"} px-6 py-40 mt-80 w-full`}>
+                  <View className={`flex flex-col   mt-80  ${index===1 && "items-center mt-72"} ${index===2 && "items-end mt-92  justify-end"} px-6 py-40 w-full`}>
                     <Text
                       className={`md:text-3xl text-black mb-4 text-3xl text-left font-medium w-2/3 ${index===1 && "text-center"} ${index===2 && "text-right"}`}
                     >

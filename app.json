@@ -1,11 +1,11 @@
-{
+ {
   "expo": {
     "name": "kwiyeh",
     "slug": "kwiyeh",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "kwiyeh",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -17,19 +17,46 @@
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.kwiyeh.kwiyeh",
       "supportsTablet": true,
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-      }
+      },
+      "associatedDomains": [
+        "applinks:kwiyeh.com"
+      ],
+      "urlTypes": [
+        {
+          "role": "Editor",
+          "name": "kwiyeh",
+          "schemes": ["kwiyeh"]
+        }
+      ]
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": ["INTERNET"]
+      "permissions": [
+        "INTERNET"
+      ],
+      "package": "com.kwiyeh.kwiyeh",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "kwiyeh",
+              "host": "*"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -41,6 +68,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "98c21e6c-63df-4be6-946e-8b782ad2c35c"
+      }
     }
   }
 }

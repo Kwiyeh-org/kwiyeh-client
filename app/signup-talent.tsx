@@ -1,6 +1,6 @@
  // app/signup-talent.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,17 +11,25 @@ import {
   ImageBackground,
   Platform,
   StyleSheet,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { Checkbox as MobileCheckbox } from "~/components/ui/checkbox"; // Your existing checkbox
-import { Checkbox as WebCheckbox } from "~/components/ui-web/web-checkbox"; // Your new web checkbox
+import { Checkbox as MobileCheckbox } from "~/components/ui/checkbox";
+import { Checkbox as WebCheckbox } from "~/components/ui-web/web-checkbox";
 import CountrySelect, { Country } from "~/components/country-component/CountrySelect";
 import Entypo from "@expo/vector-icons/Entypo";
 import { Formik } from "formik";
 import * as Yup from "yup";
-import { registerUser } from "~/app/services/firebase";
+import { registerUser } from "~/services/firebase";
+import { signInWithGoogle, handleGoogleRedirect } from "@/services/firebase";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
+
+// Initialize WebBrowser for OAuth
+WebBrowser.maybeCompleteAuthSession();
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -55,17 +63,46 @@ export default function SignupTalent() {
   // Platform-specific checkbox component
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
 
+  // Deep link handler for OAuth redirects  
+  useEffect(() => {
+    console.log("Setting up deep link handler");
+
+    const subscription = Linking.addEventListener("url", async ({ url }) => {
+      console.log("Deep link received:", url);
+      setIsSigningUp(true);
+
+      try {
+        console.log("Attempting to handle Google redirect");
+        // this will complete the Supabase session, forward to backend, and store the returned UId
+        await handleGoogleRedirect(url);
+
+        console.log("Google redirect handled successfully, navigating to talent skill form");
+        router.push("/talent-skillForm");
+      } catch (err: any) {
+        console.error("Google redirect error:", err);
+        Alert.alert(
+          "Authentication Error",
+          err.message || "Failed to complete authentication"
+        );
+      } finally {
+        setIsSigningUp(false);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [router]);
+
   // Handle signup submission with improved error handling
   const handleSubmit = async (values: any) => {
     try {
       setIsSigningUp(true);
 
       const formattedPhone = `${selectedCountry.dial_code}${values.phoneNumber}`;
-      
+
       console.log("Attempting to register with:", {
         fullName: values.fullName,
         email: values.email,
-        phoneNumber: formattedPhone
+        phoneNumber: formattedPhone,
       });
 
       await registerUser({
@@ -78,18 +115,23 @@ export default function SignupTalent() {
       router.push("/talent-skillForm");
     } catch (error: any) {
       console.error("Detailed error:", JSON.stringify(error, null, 2));
-      
+
       if (error.message === "Email already in use") {
         Alert.alert("Signup Failed", "This email is already in use.");
-      } else if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
+      } else if (
+        error.code === "NETWORK_ERROR" ||
+        error.message?.includes("Network Error")
+      ) {
         Alert.alert(
-          "Network Error", 
+          "Network Error",
           "Unable to connect to the server. Please check your internet connection and try again."
         );
       } else {
         Alert.alert(
-          "Signup Failed", 
-          `Error: ${error.message || "Unknown error occurred"}. Please try again.`
+          "Signup Failed",
+          `Error: ${
+            error.message || "Unknown error occurred"
+          }. Please try again.`
         );
       }
       console.error("Signup error type:", typeof error);
@@ -97,6 +139,23 @@ export default function SignupTalent() {
       console.error("Signup error code:", error.code);
       console.error("Signup error response:", error.response);
     } finally {
+      setIsSigningUp(false);
+    }
+  };
+
+  // Simplified Google Sign-In handler using Supabase
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsSigningUp(true);
+      // this opens the system browser (on mobile) or redirects (on web)
+      await signInWithGoogle();
+      // no router.push here—your deep-link handler will catch the callback URL
+    } catch (error: any) {
+      console.error("Google Sign In Error:", error);
+      Alert.alert(
+        "Google Sign In Failed",
+        error.message || "Authentication failed"
+      );
       setIsSigningUp(false);
     }
   };
@@ -114,19 +173,35 @@ export default function SignupTalent() {
   // Background image per platform
   const backgroundSource =
     Platform.OS === "web"
-      ? require("@/assets/images/Desktoplogin-background.png")
+      ? require("@/assets/images/Desktoplogin-background.svg")
       : require("@/assets/images/signup-background.png");
+
+  // Define web-specific styles to use with proper typing
+  const webImageBackgroundStyle = Platform.OS === "web" ? {
+    minHeight: "100%",
+    maxHeight: "100%",
+    overflow: "hidden",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  } as unknown as ViewStyle : undefined;
+
+  const webScrollViewStyle = Platform.OS === "web" ? {
+    maxHeight: "100%",
+  } as ViewStyle : undefined;
 
   return (
     <ImageBackground
       source={backgroundSource}
-      style={[styles.backgroundImage, Platform.OS === 'web' ? styles.webContainer : null]}
+      style={[
+        styles.backgroundImage,
+        webImageBackgroundStyle,
+      ]}
       resizeMode="cover"
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
-        style={Platform.OS === 'web' ? styles.webScrollView : {}}
+        style={webScrollViewStyle}
       >
         <View style={styles.container}>
           {/* Back Button */}
@@ -142,9 +217,7 @@ export default function SignupTalent() {
 
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              Sign up
-            </Text>
+            <Text style={styles.headerTitle}>Sign up</Text>
             <Text style={styles.headerSubtitle}>
               Create your Kwiyeh Talent account
             </Text>
@@ -187,9 +260,7 @@ export default function SignupTalent() {
                       accessibilityLabel="Full name input"
                     />
                     {touched.fullName && errors.fullName && (
-                      <Text style={styles.errorText}>
-                        {errors.fullName}
-                      </Text>
+                      <Text style={styles.errorText}>{errors.fullName}</Text>
                     )}
                   </View>
 
@@ -207,9 +278,7 @@ export default function SignupTalent() {
                       accessibilityLabel="Email input"
                     />
                     {touched.email && errors.email && (
-                      <Text style={styles.errorText}>
-                        {errors.email}
-                      </Text>
+                      <Text style={styles.errorText}>{errors.email}</Text>
                     )}
                   </View>
 
@@ -232,9 +301,7 @@ export default function SignupTalent() {
                       />
                     </View>
                     {touched.phoneNumber && errors.phoneNumber && (
-                      <Text style={styles.errorText}>
-                        {errors.phoneNumber}
-                      </Text>
+                      <Text style={styles.errorText}>{errors.phoneNumber}</Text>
                     )}
                   </View>
 
@@ -251,9 +318,7 @@ export default function SignupTalent() {
                       accessibilityLabel="Password input"
                     />
                     {touched.password && errors.password && (
-                      <Text style={styles.errorText}>
-                        {errors.password}
-                      </Text>
+                      <Text style={styles.errorText}>{errors.password}</Text>
                     )}
                   </View>
 
@@ -292,9 +357,14 @@ export default function SignupTalent() {
                   <View style={styles.termsTextContainer}>
                     <Text style={styles.termsText}>
                       I agree to the{" "}
-                      <Text 
+                      <Text
                         style={styles.linkText}
-                        onPress={() => Alert.alert("Terms & Conditions", "Terms and conditions will be displayed here.")}
+                        onPress={() =>
+                          Alert.alert(
+                            "Terms & Conditions",
+                            "Terms and conditions will be displayed here."
+                          )
+                        }
                       >
                         terms and conditions
                       </Text>
@@ -331,7 +401,10 @@ export default function SignupTalent() {
             <Text style={styles.loginText}>
               Already have an account?{" "}
               <Text
-                style={[styles.linkText, Platform.OS === "web" ? styles.webLinkText : {}]}
+                style={[
+                  styles.linkText,
+                  Platform.OS === "web" ? styles.webLinkText : {},
+                ]}
                 onPress={handleLogin}
                 accessibilityRole="link"
                 accessibilityLabel="Login"
@@ -348,13 +421,12 @@ export default function SignupTalent() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Google Button (placeholder) */}
+          {/* Google Button */}
           <Button
             className="flex-row items-center justify-center bg-transparent py-5 px-6 rounded-full border border-gray-300 mb-4"
-            onPress={() =>
-              Alert.alert("Google signup is temporarily disabled.")
-            }
+            onPress={handleGoogleSignIn}
             accessibilityLabel="Sign up with Google"
+            disabled={isSigningUp}
           >
             <Image
               source={require("@/assets/images/google.png")}
@@ -363,7 +435,7 @@ export default function SignupTalent() {
               accessibilityLabel="Google logo"
             />
             <Text className="text-base font-medium text-black">
-              Sign up with Google
+              {isSigningUp ? "Processing..." : "Sign up with Google"}
             </Text>
           </Button>
         </View>
@@ -372,60 +444,78 @@ export default function SignupTalent() {
   );
 }
 
+// Define combined style type
+type Styles = {
+  backgroundImage: ViewStyle;
+  container: ViewStyle;
+  backButton: ViewStyle;
+  header: ViewStyle;
+  headerTitle: TextStyle;
+  headerSubtitle: TextStyle;
+  formFields: ViewStyle;
+  inputContainer: ViewStyle;
+  errorText: TextStyle;
+  termsContainer: ViewStyle;
+  checkboxContainer: ViewStyle;
+  termsTextContainer: ViewStyle;
+  termsText: TextStyle;
+  linkText: TextStyle;
+  webLinkText: TextStyle;
+  loginLinkContainer: ViewStyle;
+  loginText: TextStyle;
+  divider: ViewStyle;
+  dividerLine: ViewStyle;
+  dividerText: TextStyle;
+}
+
 // StyleSheet with responsive values and platform-specific styles
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<Styles>({
   backgroundImage: {
     flex: 1,
-  },
-  webContainer: {
-    minHeight: '100vh' as any,
-    maxHeight: '100vh' as any,
-    overflow: 'hidden' as any,
-  },
-  webScrollView: {
-    maxHeight: '100vh' as any,
+    width: "100%",
+    height: "100%",
   },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "web" ? 48 : 24,
     paddingBottom: 32,
     maxWidth: 520,
-    marginHorizontal: 'auto',
-    width: '100%',
+    marginHorizontal: "auto",
+    width: "100%",
   },
   backButton: {
     marginBottom: 24,
+    paddingTop: 24,
   },
   header: {
     marginBottom: 32,
   },
   headerTitle: {
-    fontSize: Platform.OS === 'web' ? 40 : 32,
-    fontWeight: 'bold',
-    color: 'black',
+    fontSize: Platform.OS === "web" ? 40 : 32,
+    fontWeight: "bold",
+    color: "black",
     marginBottom: 8,
   },
   headerSubtitle: {
-    fontSize: Platform.OS === 'web' ? 20 : 18,
-    color: 'black',
+    fontSize: Platform.OS === "web" ? 20 : 18,
+    color: "black",
   },
   formFields: {
     marginBottom: 24,
-    // Using gap instead of space-y for consistent spacing
-    gap: Platform.OS === 'web' ? 12 : 6,
+    gap: Platform.OS === "web" ? 12 : 6,
   },
   inputContainer: {
-    marginBottom: Platform.OS === 'web' ? 16 : 12,
+    marginBottom: Platform.OS === "web" ? 16 : 12,
   },
   errorText: {
-    color: 'red',
+    color: "red",
     fontSize: 14,
     marginTop: 4,
   },
   termsContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginTop: 24,
     marginBottom: 24,
   },
@@ -437,36 +527,36 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   termsText: {
-    color: 'black',
+    color: "black",
   },
   linkText: {
-    color: 'blue',
+    color: "blue",
   },
   webLinkText: {
-    textDecorationLine: 'none' as any,
-    cursor: 'pointer' as any,
+    textDecorationLine: "none",
+    cursor: "pointer",
   },
   loginLinkContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 16,
   },
   loginText: {
-    color: 'black',
+    color: "black",
   },
   divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'black',
+    backgroundColor: "black",
     opacity: 0.2,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: 'black',
+    color: "black",
     opacity: 0.5,
   },
 });

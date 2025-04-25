@@ -10,6 +10,8 @@ import {
   ImageBackground,
   Platform,
   StyleSheet,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Input } from "~/components/ui/input";
@@ -18,7 +20,7 @@ import { Checkbox as MobileCheckbox } from "~/components/ui/checkbox"; // Your e
 import { Checkbox as WebCheckbox } from "~/components/ui-web/web-checkbox"; // Your new web checkbox
 import { Formik } from "formik";
 import * as Yup from "yup";
-import { loginUser } from "~/app/services/firebase";
+import { loginUser } from "~/services/firebase";
 
 // Validation schema
 const LoginSchema = Yup.object().shape({
@@ -35,32 +37,41 @@ export default function Login() {
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
 
   // Handle login with proper validation
-  const handleLogin = async (values: { email: string; password: string; rememberMe: boolean }) => {
+  const handleLogin = async (values: {
+    email: string;
+    password: string;
+    rememberMe: boolean;
+  }) => {
     try {
       setIsLoggingIn(true);
 
       console.log("Attempting to login with:", {
-        email: values.email
+        email: values.email,
       });
 
       await loginUser(values.email, values.password);
 
-      // Navigate to talent dashboard after successful login
-      router.push("/talent-skillForm");
+      // Navigate to talent dashboard after successful login (maintaining talent-specific routing)
+      router.push("/talent-dashboard");
     } catch (error: any) {
       console.error("Login error details:", JSON.stringify(error, null, 2));
-      
+
       if (error.response?.status === 401) {
         Alert.alert("Login Failed", "Invalid email or password.");
-      } else if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
+      } else if (
+        error.code === "NETWORK_ERROR" ||
+        error.message?.includes("Network Error")
+      ) {
         Alert.alert(
-          "Network Error", 
+          "Network Error",
           "Unable to connect to the server. Please check your internet connection and try again."
         );
       } else {
         Alert.alert(
-          "Login Failed", 
-          `Error: ${error.message || "Unknown error occurred"}. Please try again.`
+          "Login Failed",
+          `Error: ${
+            error.message || "Unknown error occurred"
+          }. Please try again.`
         );
       }
       console.error("Login error type:", typeof error);
@@ -72,30 +83,47 @@ export default function Login() {
   };
 
   const handleCreateAccount = () => {
-    // Navigate directly to talent signup
+    // Maintain talent-specific routing
     router.push("/signup-talent");
   };
 
   const handleForgotPassword = () => {
-    Alert.alert("Reset Password", "Password reset functionality will be implemented soon.");
+    // Navigate to the talent-forgot-password page
+    router.push("/talent-forgot-password" as any);
   };
 
   // Background image based on platform
   const backgroundSource =
     Platform.OS === "web"
-      ? require("@/assets/images/Desktoplogin-background.png")
+      ? require("@/assets/images/Desktoplogin-background.svg")
       : require("@/assets/images/signup-background.png");
+
+  // Define web-specific styles to use with proper typing
+  const webImageBackgroundStyle = Platform.OS === "web" ? {
+    minHeight: "100%",
+    maxHeight: "100%",
+    overflow: "hidden",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  } as unknown as ViewStyle : undefined;
+
+  const webScrollViewStyle = Platform.OS === "web" ? {
+    maxHeight: "100%",
+  } as ViewStyle : undefined;
 
   return (
     <ImageBackground
       source={backgroundSource}
-      style={[styles.backgroundImage, Platform.OS === 'web' ? styles.webContainer : null]}
+      style={[
+        styles.backgroundImage,
+        webImageBackgroundStyle,
+      ]}
       resizeMode="cover"
     >
-      <ScrollView 
+      <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
-        style={Platform.OS === 'web' ? styles.webScrollView : {}}
+        style={webScrollViewStyle}
       >
         <View style={styles.container}>
           {/* Header */}
@@ -140,9 +168,7 @@ export default function Login() {
                       accessibilityLabel="Email input"
                     />
                     {touched.email && errors.email && (
-                      <Text style={styles.errorText}>
-                        {errors.email}
-                      </Text>
+                      <Text style={styles.errorText}>{errors.email}</Text>
                     )}
                   </View>
 
@@ -159,9 +185,7 @@ export default function Login() {
                       accessibilityLabel="Password input"
                     />
                     {touched.password && errors.password && (
-                      <Text style={styles.errorText}>
-                        {errors.password}
-                      </Text>
+                      <Text style={styles.errorText}>{errors.password}</Text>
                     )}
                   </View>
                 </View>
@@ -181,17 +205,20 @@ export default function Login() {
                     </View>
                     <Text style={styles.rememberText}>Remember me</Text>
                   </View>
-                  <TouchableOpacity onPress={handleForgotPassword} accessibilityLabel="Forgot password">
-                    <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+                  <TouchableOpacity
+                    onPress={handleForgotPassword}
+                    accessibilityLabel="Forgot password"
+                  >
+                    <Text style={styles.forgotPasswordText}>
+                      Forgot your password?
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Login Button */}
                 <Button
                   className={`py-4 rounded-full mb-4 ${
-                    isValid
-                      ? "bg-green-800"
-                      : "bg-green-800 opacity-50"
+                    isValid ? "bg-green-800" : "bg-green-800 opacity-50"
                   }`}
                   onPress={() => handleSubmit()}
                   disabled={!isValid || isLoggingIn}
@@ -210,7 +237,10 @@ export default function Login() {
             <Text style={styles.createAccountText}>
               Don't have an account?{" "}
               <Text
-                style={[styles.linkText, Platform.OS === "web" ? styles.webLinkText : {}]}
+                style={[
+                  styles.linkText,
+                  Platform.OS === "web" ? styles.webLinkText : {},
+                ]}
                 onPress={handleCreateAccount}
                 accessibilityRole="link"
                 accessibilityLabel="Create account"
@@ -225,85 +255,100 @@ export default function Login() {
   );
 }
 
+// Define combined style type
+type Styles = {
+  backgroundImage: ViewStyle;
+  container: ViewStyle;
+  header: ViewStyle;
+  headerTitle: TextStyle;
+  headerSubtitle: TextStyle;
+  formFields: ViewStyle;
+  inputContainer: ViewStyle;
+  errorText: TextStyle;
+  rememberContainer: ViewStyle;
+  checkboxContainer: ViewStyle;
+  checkboxWrapper: ViewStyle;
+  rememberText: TextStyle;
+  forgotPasswordText: TextStyle;
+  createAccountContainer: ViewStyle;
+  createAccountText: TextStyle;
+  linkText: TextStyle;
+  webLinkText: TextStyle;
+}
+
 // StyleSheet with responsive values and platform-specific styles
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<Styles>({
   backgroundImage: {
     flex: 1,
-  },
-  webContainer: {
-    minHeight: '100vh' as any,
-    maxHeight: '100vh' as any,
-    overflow: 'hidden' as any,
-  },
-  webScrollView: {
-    maxHeight: '100vh' as any,
+    width: "100%",
+    height: "100%",
   },
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingTop: Platform.OS === "web" ? 48 : 24,
     paddingBottom: 32,
     maxWidth: 520,
-    marginHorizontal: 'auto',
-    width: '100%',
+    marginHorizontal: "auto",
+    width: "100%",
   },
   header: {
     marginBottom: 40,
   },
   headerTitle: {
-    fontSize: Platform.OS === 'web' ? 40 : 32,
-    fontWeight: 'bold',
-    color: 'black',
+    fontSize: Platform.OS === "web" ? 40 : 32,
+    fontWeight: "bold",
+    color: "black",
     marginBottom: 8,
   },
   headerSubtitle: {
-    fontSize: Platform.OS === 'web' ? 20 : 18,
-    color: 'black',
+    fontSize: Platform.OS === "web" ? 20 : 18,
+    color: "black",
   },
   formFields: {
     marginBottom: 24,
-    gap: Platform.OS === 'web' ? 12 : 6,
+    gap: Platform.OS === "web" ? 12 : 6,
   },
   inputContainer: {
-    marginBottom: Platform.OS === 'web' ? 16 : 12,
+    marginBottom: Platform.OS === "web" ? 16 : 12,
   },
   errorText: {
-    color: 'red',
+    color: "red",
     fontSize: 14,
     marginTop: 4,
   },
   rememberContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 32,
   },
   checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   checkboxWrapper: {
     marginTop: 1,
     marginRight: 8,
   },
   rememberText: {
-    color: 'black',
+    color: "black",
   },
   forgotPasswordText: {
-    color: 'blue',
+    color: "blue",
   },
   createAccountContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 16,
   },
   createAccountText: {
-    color: 'black',
+    color: "black",
   },
   linkText: {
-    color: 'blue',
+    color: "blue",
   },
   webLinkText: {
-    textDecorationLine: 'none' as any,
-    cursor: 'pointer' as any,
+    textDecorationLine: "none",
+    cursor: "pointer",
   },
 });

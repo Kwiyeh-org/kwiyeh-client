@@ -1,5 +1,6 @@
  // app/_layout.tsx
-
+ 
+'use client';
 import "~/global.css";
 import {
   DarkTheme,
@@ -16,6 +17,7 @@ import { useColorScheme } from "~/lib/useColorScheme";
 import { PortalHost } from "@rn-primitives/portal";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
+
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -107,6 +109,14 @@ export default function RootLayout() {
           }}
         />
 
+<Stack.Screen
+          name="client-forgot-password"
+          options={{
+            title: "client-forgot-password",
+            headerShown: false,
+          }}
+        />
+
         {/* Talent signup - comes after choosing talent role */}
         <Stack.Screen
           name="signup-talent"
@@ -126,6 +136,14 @@ export default function RootLayout() {
           }}
         />
 
+<Stack.Screen
+          name="talent-forgot-password"
+          options={{
+            title: "talent-forgot-password",
+            headerShown: false,
+          }}
+        />
+
         {/* Talent Skill Form - after successful talent login */}
         <Stack.Screen
           name="talent-skillForm"
@@ -134,6 +152,9 @@ export default function RootLayout() {
             headerShown: false,
           }}
         />
+
+
+        
 
         {/* 
           The not-found screen is automatically handled 
