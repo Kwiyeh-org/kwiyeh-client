@@ -24,12 +24,7 @@ import Entypo from "@expo/vector-icons/Entypo";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { registerUser } from "@/services/firebase";
-import { signInWithGoogle, handleGoogleRedirect } from "@/services/firebase";
-import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-
-// Initialize WebBrowser for OAuth
-WebBrowser.maybeCompleteAuthSession();
+import { signInWithGoogle } from "@/services/firebase";
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -50,6 +45,7 @@ const SignupSchema = Yup.object().shape({
 export default function SignupClient() {
   const router = useRouter();
   const [isSigningUp, setIsSigningUp] = useState(false);
+  const [isGoogleSignInAvailable, setIsGoogleSignInAvailable] = useState(true);
 
   // Default country
   const initialCountry: Country = {
@@ -63,35 +59,23 @@ export default function SignupClient() {
   // Platform-specific checkbox component
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
 
-  // Deep link handler for OAuth redirects  
+  // Check Google Sign-In availability on mobile
   useEffect(() => {
-    console.log("Setting up deep link handler");
-
-    const subscription = Linking.addEventListener("url", async ({ url }) => {
-      console.log("Deep link received:", url);
-      setIsSigningUp(true);
-
-      try {
-        console.log("Attempting to handle Google redirect");
-        // this will complete the Supabase session, forward to your backend,
-        // and store the returned UId in AsyncStorage
-        await handleGoogleRedirect(url);
-
-        console.log("Google redirect handled successfully, navigating to dashboard");
-        router.push("/client-dashboard");
-      } catch (err: any) {
-        console.error("Google redirect error:", err);
-        Alert.alert(
-          "Authentication Error",
-          err.message || "Failed to complete authentication"
-        );
-      } finally {
-        setIsSigningUp(false);
+    async function checkGoogleSignInAvailability() {
+      if (Platform.OS !== 'web') {
+        try {
+          // Try to dynamically require the module
+          const GoogleSigninModule = require('@react-native-google-signin/google-signin');
+          setIsGoogleSignInAvailable(true);
+        } catch (error) {
+          console.warn('Google Sign-In module not available:', error);
+          setIsGoogleSignInAvailable(false);
+        }
       }
-    });
+    }
 
-    return () => subscription.remove();
-  }, [router]);
+    checkGoogleSignInAvailability();
+  }, []);
 
   // Handle signup submission with improved error handling
   const handleSubmit = async (values: any) => {
@@ -140,23 +124,34 @@ export default function SignupClient() {
     }
   };
 
-  // Simplified Google Sign-In handler using Supabase
+  // Google Sign-In handler for both web and mobile
   const handleGoogleSignIn = async () => {
     try {
       setIsSigningUp(true);
-      // this now opens the system browser (on mobile) or redirects (on web)
-      await signInWithGoogle();
-      // no router.push here—your deep-link handler will catch the callback URL
+      
+      // Check if Google Sign-In is available on mobile
+      if (Platform.OS !== 'web' && !isGoogleSignInAvailable) {
+        throw new Error('Google Sign-In is not available on this device. Please sign up with email and password instead.');
+      }
+      
+      // signInWithGoogle now handles both web and mobile platforms
+      const result = await signInWithGoogle('/client-dashboard');
+      
+      // For mobile platforms, signInWithGoogle returns a result object
+      // that we can use to navigate directly
+      if (Platform.OS !== 'web' && result?.success) {
+        router.push(result.redirectPath);
+      }
+      // For web, the redirect is handled internally by signInWithGoogle
+      
     } catch (error: any) {
-      console.error("Google Sign In Error:", error);
-      Alert.alert(
-        "Google Sign In Failed",
-        error.message || "Authentication failed"
-      );
+      console.error('Google Sign In error:', error);
+      Alert.alert('Google Sign In Failed', error.message || 'Authentication failed');
+    } finally {
       setIsSigningUp(false);
     }
   };
-  
+
   // Navigate to login page
   const handleLogin = () => {
     router.push("/login-client");
@@ -185,6 +180,15 @@ export default function SignupClient() {
   const webScrollViewStyle = Platform.OS === "web" ? {
     maxHeight: "100%",
   } as ViewStyle : undefined;
+
+  // Google sign-in button text based on availability and platform
+  const getGoogleButtonText = () => {
+    if (isSigningUp) return "Processing...";
+    if (Platform.OS !== 'web' && !isGoogleSignInAvailable) {
+      return "Google Sign-In Unavailable";
+    }
+    return "Sign up with Google";
+  };
 
   return (
     <ImageBackground
@@ -414,20 +418,31 @@ export default function SignupClient() {
 
           {/* Google Button */}
           <Button
-            className="flex-row items-center justify-center bg-transparent py-5 px-6 rounded-full border border-gray-300 mb-4"
+            className={`flex-row items-center justify-center py-5 px-6 rounded-full border border-gray-300 mb-4 ${
+              Platform.OS !== 'web' && !isGoogleSignInAvailable 
+                ? "bg-gray-200" 
+                : "bg-transparent"
+            }`}
             onPress={handleGoogleSignIn}
             accessibilityLabel="Sign up with Google"
-            disabled={isSigningUp}
+            disabled={isSigningUp || (Platform.OS !== 'web' && !isGoogleSignInAvailable)}
           >
             <Image
               source={require("@/assets/images/google.png")}
               style={{ width: 20, height: 20, marginRight: 12 }}
               resizeMode="contain"
             />
-            <Text className="text-base font-medium text-black">
-              {isSigningUp ? "Processing..." : "Sign up with Google"}
+            <Text className={`text-base font-medium ${Platform.OS !== 'web' && !isGoogleSignInAvailable ? "text-gray-500" : "text-black"}`}>
+              {getGoogleButtonText()}
             </Text>
           </Button>
+
+          {/* Display a warning message if Google Sign-In is not available on mobile */}
+          {Platform.OS !== 'web' && !isGoogleSignInAvailable && (
+            <Text style={styles.warningText}>
+              Google Sign-In is not available. Please install the required module or sign up with email and password.
+            </Text>
+          )}
         </View>
       </ScrollView>
     </ImageBackground>
@@ -445,6 +460,7 @@ type Styles = {
   formFields: ViewStyle;
   inputContainer: ViewStyle;
   errorText: TextStyle;
+  warningText: TextStyle;
   termsContainer: ViewStyle;
   checkboxContainer: ViewStyle;
   termsTextContainer: ViewStyle;
@@ -502,6 +518,12 @@ const styles = StyleSheet.create<Styles>({
     color: "red",
     fontSize: 14,
     marginTop: 4,
+  },
+  warningText: {
+    color: "orange",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 16,
   },
   termsContainer: {
     flexDirection: "row",

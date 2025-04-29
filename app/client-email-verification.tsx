@@ -1,4 +1,4 @@
-//app/client-email-verification.tsx
+ //app/client-email-verification.tsx
 
 import React, { useState, useRef } from "react";
 import {
@@ -17,6 +17,11 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Button } from "~/components/ui/button";
 import Entypo from "@expo/vector-icons/Entypo";
+
+// API Base URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? 'http://localhost:8080'
+  : 'http://192.168.45.34:8080';
 
 export default function EmailVerification() {
   const router = useRouter();
@@ -66,7 +71,7 @@ export default function EmailVerification() {
       console.log("Verifying code:", code.join(""));
       
       // Call API endpoint to verify code
-      const response = await fetch("/verifyCode", {
+      const response = await fetch(`${API_BASE_URL}/verifyCode`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +88,14 @@ export default function EmailVerification() {
       
       // Parse the response to get passwordToken and expiresIn
       const data = await response.json();
+      console.log("Verification response:", data);
+      
+      // Extract passwordToken from response
       const { passwordToken, expiresIn } = data;
+      
+      if (!passwordToken) {
+        throw new Error("No password token received");
+      }
       
       // Navigate to reset password page with email, code, and passwordToken
       router.push({
@@ -293,3 +305,4 @@ const styles = StyleSheet.create<Styles>({
     fontWeight: "bold",
   },
 });
+

@@ -17,6 +17,11 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import Entypo from "@expo/vector-icons/Entypo";
 
+// API Base URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? 'http://localhost:8080'
+  : 'http://192.168.45.34:8080';
+
 // Validation schema
 const EmailSchema = Yup.object().shape({
   email: Yup.string().email("Invalid email").required("Email is required"),
@@ -33,7 +38,7 @@ export default function ForgotPassword() {
       console.log("Requesting password reset for:", values.email);
       
       // Call API endpoint
-      const response = await fetch(`/forgetPassword?email=${encodeURIComponent(values.email)}`, {
+      const response = await fetch(`${API_BASE_URL}/forgetPassword?email=${encodeURIComponent(values.email)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -43,6 +48,9 @@ export default function ForgotPassword() {
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
+      
+      const data = await response.json();
+      console.log("Password reset response:", data);
       
       // Navigate to verification page passing email as param
       router.push({

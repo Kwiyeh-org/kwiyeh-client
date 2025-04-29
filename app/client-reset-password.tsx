@@ -1,4 +1,4 @@
-//app/client-reset-password.tsx
+ //app/client-reset-password.tsx
 
 import React, { useState } from "react";
 import {
@@ -18,6 +18,11 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import Entypo from "@expo/vector-icons/Entypo";
 
+// API Base URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? 'http://localhost:8080'
+  : 'http://192.168.45.34:8080';
+
 // Validation schema
 const PasswordSchema = Yup.object().shape({
   password: Yup.string()
@@ -30,7 +35,7 @@ const PasswordSchema = Yup.object().shape({
 
 export default function ResetPassword() {
   const router = useRouter();
-  const { email, code } = useLocalSearchParams();
+  const { email, passwordToken } = useLocalSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleBack = () => {
@@ -46,11 +51,12 @@ export default function ResetPassword() {
       setIsSubmitting(true);
       console.log("Resetting password for:", email);
       
-      // Call API endpoint with the correct body format
-      const response = await fetch("/resetPassword", {
+      // Call API endpoint with token in Authorization header
+      const response = await fetch(`${API_BASE_URL}/resetPassword`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${passwordToken}`,
         },
         body: JSON.stringify({
           email: email,
@@ -61,6 +67,9 @@ export default function ResetPassword() {
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
+      
+      const data = await response.json();
+      console.log("Password reset response:", data);
       
       Alert.alert(
         "Success",
