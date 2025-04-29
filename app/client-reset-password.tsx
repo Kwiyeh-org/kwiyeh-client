@@ -68,9 +68,6 @@ export default function ResetPassword() {
         throw new Error(`Error: ${response.status}`);
       }
       
-      const data = await response.json();
-      console.log("Password reset response:", data);
-      
       Alert.alert(
         "Success",
         "Your password has been reset successfully.",

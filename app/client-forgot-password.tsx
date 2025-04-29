@@ -20,7 +20,7 @@ import Entypo from "@expo/vector-icons/Entypo";
 // API Base URL
 const API_BASE_URL = Platform.OS === 'web'
   ? 'http://localhost:8080'
-  : 'http://192.168.45.34:8080';
+  : 'http://192.168.168.250:8080';
 
 // Validation schema
 const EmailSchema = Yup.object().shape({
@@ -48,9 +48,6 @@ export default function ForgotPassword() {
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
-      
-      const data = await response.json();
-      console.log("Password reset response:", data);
       
       // Navigate to verification page passing email as param
       router.push({
