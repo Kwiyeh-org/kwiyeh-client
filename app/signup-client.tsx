@@ -14,7 +14,6 @@ import {
   ViewStyle,
   TextStyle,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Checkbox as MobileCheckbox } from "~/components/ui/checkbox";
@@ -25,6 +24,8 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import { registerUser } from "@/services/firebase";
 import { signInWithGoogle } from "@/services/firebase";
+import { signInWithGoogleMobile } from "~/services/auth";
+import { useRouter } from "expo-router";
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -134,15 +135,23 @@ export default function SignupClient() {
         throw new Error('Google Sign-In is not available on this device. Please sign up with email and password instead.');
       }
       
-      // signInWithGoogle now handles both web and mobile platforms
-      const result = await signInWithGoogle('/client-dashboard');
-      
-      // For mobile platforms, signInWithGoogle returns a result object
-      // that we can use to navigate directly
-      if (Platform.OS !== 'web' && result?.success) {
-        router.push(result.redirectPath);
+      // Use the new signInWithGoogleMobile function for mobile platforms
+      if (Platform.OS !== 'web') {
+        try {
+          await signInWithGoogleMobile();
+          // Note: Navigation happens inside signInWithGoogleMobile
+        } catch (error: any) {
+          if (error.message?.includes('is not a function')) {
+            // Fallback if there's an issue with the auth flow
+            Alert.alert('Authentication Error', 'There was a problem with the Google Sign-In process. Please try again or use email/password instead.');
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        // For web, use the existing signInWithGoogle function
+        await signInWithGoogle('/client-dashboard');
       }
-      // For web, the redirect is handled internally by signInWithGoogle
       
     } catch (error: any) {
       console.error('Google Sign In error:', error);

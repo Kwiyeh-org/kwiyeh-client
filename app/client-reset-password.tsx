@@ -21,7 +21,7 @@ import Entypo from "@expo/vector-icons/Entypo";
 // API Base URL
 const API_BASE_URL = Platform.OS === 'web'
   ? 'http://localhost:8080'
-  : 'http://192.168.45.34:8080';
+  : 'http://192.168.216.33:8080';
 
 // Validation schema
 const PasswordSchema = Yup.object().shape({

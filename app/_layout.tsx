@@ -117,6 +117,22 @@ export default function RootLayout() {
           }}
         />
 
+<Stack.Screen
+          name="client-email-verification"
+          options={{
+            title: "client-email-verification",
+            headerShown: false,
+          }}
+        />
+
+<Stack.Screen
+          name="client-reset-password"
+          options={{
+            title: "client-reset-password",
+            headerShown: false,
+          }}
+        />
+
         {/* Talent signup - comes after choosing talent role */}
         <Stack.Screen
           name="signup-talent"
@@ -136,13 +152,42 @@ export default function RootLayout() {
           }}
         />
 
-<Stack.Screen
-          name="talent-forgot-password"
+        {/* talent Dashboard - after successful client login */}
+        <Stack.Screen
+          name="talent-dashboard"
           options={{
-            title: "talent-forgot-password",
+            title: "talent Dashboard",
             headerShown: false,
           }}
         />
+
+
+<Stack.Screen
+          name="talent-forgot-password"
+          options={{
+            title: "talent forgot password",
+            headerShown: false,
+          }}
+        />
+
+ 
+<Stack.Screen
+          name="talent-email-verification"
+          options={{
+            title: "talent email verification",
+            headerShown: false,
+          }}
+        />
+
+<Stack.Screen
+          name="talent-reset-password"
+          options={{
+            title: "talent reset password",
+            headerShown: false,
+          }}
+        />
+
+
 
         {/* Talent Skill Form - after successful talent login */}
         <Stack.Screen

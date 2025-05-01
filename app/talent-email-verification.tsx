@@ -1,4 +1,4 @@
- //app/client-email-verification.tsx
+ //app/talent-email-verification.tsx
 
 import React, { useState, useRef } from "react";
 import {
@@ -99,7 +99,7 @@ export default function EmailVerification() {
       
       // Navigate to reset password page with email, code, and passwordToken
       router.push({
-        pathname: "/client-reset-password",
+        pathname: "/talent-reset-password",
         params: { 
           email: email as string,
           code: code.join(""),

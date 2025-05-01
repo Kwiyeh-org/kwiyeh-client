@@ -1,4 +1,5 @@
- //app/client-forgot-password.tsx
+ //app/talent-reset-password.tsx
+
 import React, { useState } from "react";
 import {
   View,
@@ -10,7 +11,7 @@ import {
   Platform,
   StyleSheet,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Formik } from "formik";
@@ -23,50 +24,69 @@ const API_BASE_URL = Platform.OS === 'web'
   : 'http://192.168.216.33:8080';
 
 // Validation schema
-const EmailSchema = Yup.object().shape({
-  email: Yup.string().email("Invalid email").required("Email is required"),
+const PasswordSchema = Yup.object().shape({
+  password: Yup.string()
+    .required("Password is required")
+    .min(6, "Password must be at least 6 characters"),
+  confirmPassword: Yup.string()
+    .required("Confirm password is required")
+    .oneOf([Yup.ref("password")], "Passwords must match"),
 });
 
-export default function ForgotPassword() {
+export default function ResetPassword() {
   const router = useRouter();
+  const { email, passwordToken } = useLocalSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle forgot password request
-  const handleResetRequest = async (values: { email: string }) => {
+  const handleBack = () => {
+    router.back();
+  };
+
+  // Handle password reset
+  const handlePasswordReset = async (values: {
+    password: string;
+    confirmPassword: string;
+  }) => {
     try {
       setIsSubmitting(true);
-      console.log("Requesting password reset for:", values.email);
+      console.log("Resetting password for:", email);
       
-      // Call API endpoint
-      const response = await fetch(`${API_BASE_URL}/forgetPassword?email=${encodeURIComponent(values.email)}`, {
-        method: 'GET',
+      // Call API endpoint with token in Authorization header
+      const response = await fetch(`${API_BASE_URL}/resetPassword`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${passwordToken}`,
         },
+        body: JSON.stringify({
+          email: email,
+          password: values.password
+        }),
       });
       
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
       
-      // Navigate to verification page passing email as param
-      router.push({
-        pathname: "/client-email-verification",
-        params: { email: values.email }
-      });
-    } catch (error: any) {
-      console.error("Password reset request error:", error);
       Alert.alert(
-        "Request Failed",
-        "Unable to process your request. Please try again later."
+        "Success",
+        "Your password has been reset successfully.",
+        [
+          {
+            text: "Login Now",
+            onPress: () => router.push("/talent-dashboard")
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Password reset error:", error);
+      Alert.alert(
+        "Reset Failed",
+        "Unable to reset your password. Please try again."
       );
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleBack = () => {
-    router.back();
   };
 
   // Background image based on platform
@@ -78,10 +98,7 @@ export default function ForgotPassword() {
   return (
     <ImageBackground
       source={backgroundSource}
-      style={[
-        styles.backgroundImage,
-        Platform.OS === "web" ? styles.webContainer : null,
-      ]}
+      style={styles.backgroundImage}
       resizeMode="cover"
     >
       <ScrollView
@@ -98,31 +115,32 @@ export default function ForgotPassword() {
               accessibilityLabel="Go back"
             >
               <Entypo name="chevron-left" size={24} color="black" />
-              <Text style={styles.backText}>Forgot Password</Text>
+              <Text style={styles.backText}>Reset Password</Text>
             </TouchableOpacity>
           )}
           
           {/* Header - Web Only */}
           {Platform.OS === "web" && (
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>Forgot Password</Text>
+              <Text style={styles.headerTitle}>Reset Password</Text>
             </View>
           )}
 
           {/* Instructions */}
           <View style={styles.instructionContainer}>
-            <Text style={styles.instructionTitle}>Mail Address Here</Text>
+            <Text style={styles.instructionTitle}>Enter New Password</Text>
             <Text style={styles.instructionText}>
-              Enter the email address associated with your account.
+              Your new password must be different from the recently used password.
             </Text>
           </View>
 
           <Formik
             initialValues={{
-              email: "",
+              password: "",
+              confirmPassword: "",
             }}
-            validationSchema={EmailSchema}
-            onSubmit={handleResetRequest}
+            validationSchema={PasswordSchema}
+            onSubmit={handlePasswordReset}
           >
             {({
               handleChange,
@@ -134,37 +152,53 @@ export default function ForgotPassword() {
               isValid,
             }) => (
               <>
-                {/* Email Input */}
                 <View style={styles.formFields}>
+                  {/* Password */}
                   <View style={styles.inputContainer}>
                     <Input
-                      placeholder="Email"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      value={values.email}
-                      onChangeText={handleChange("email")}
-                      onBlur={handleBlur("email")}
+                      placeholder="Password"
+                      secureTextEntry
+                      value={values.password}
+                      onChangeText={handleChange("password")}
+                      onBlur={handleBlur("password")}
                       className="bg-white rounded-xl px-4 py-3 text-base border border-[#90EE90]"
                       placeholderTextColor="#A0A0A0"
-                      accessibilityLabel="Email input"
+                      accessibilityLabel="New password input"
                     />
-                    {touched.email && errors.email && (
-                      <Text style={styles.errorText}>{errors.email}</Text>
+                    {touched.password && errors.password && (
+                      <Text style={styles.errorText}>{errors.password}</Text>
+                    )}
+                  </View>
+
+                  {/* Confirm Password */}
+                  <View style={styles.inputContainer}>
+                    <Input
+                      placeholder="Confirm Password"
+                      secureTextEntry
+                      value={values.confirmPassword}
+                      onChangeText={handleChange("confirmPassword")}
+                      onBlur={handleBlur("confirmPassword")}
+                      className="bg-white rounded-xl px-4 py-3 text-base border border-[#90EE90]"
+                      placeholderTextColor="#A0A0A0"
+                      accessibilityLabel="Confirm password input"
+                    />
+                    {touched.confirmPassword && errors.confirmPassword && (
+                      <Text style={styles.errorText}>{errors.confirmPassword}</Text>
                     )}
                   </View>
                 </View>
 
-                {/* Submit Button */}
+                {/* Reset Button */}
                 <Button
                   className={`py-4 rounded-full ${
                     isValid ? "bg-green-800" : "bg-green-800 opacity-50"
                   }`}
                   onPress={() => handleSubmit()}
                   disabled={!isValid || isSubmitting}
-                  accessibilityLabel="Recover password button"
+                  accessibilityLabel="Reset password button"
                 >
                   <Text className="text-white text-lg font-semibold">
-                    {isSubmitting ? "Processing..." : "Recover Password"}
+                    {isSubmitting ? "Processing..." : "Reset Password"}
                   </Text>
                 </Button>
               </>
