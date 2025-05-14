@@ -1,4 +1,4 @@
- {
+{
   "expo": {
     "name": "kwiyeh",
     "slug": "kwiyeh",
@@ -26,13 +26,6 @@
       },
       "associatedDomains": [
         "applinks:kwiyeh.com"
-      ],
-      "urlTypes": [
-        {
-          "role": "Editor",
-          "name": "kwiyeh",
-          "schemes": ["kwiyeh"]
-        }
       ]
     },
     "android": {
@@ -44,6 +37,7 @@
         "INTERNET"
       ],
       "package": "com.kwiyeh.kwiyeh",
+      "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -54,7 +48,10 @@
               "host": "*"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -64,7 +61,12 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      ["expo-build-properties",{
+        "android":{
+          "useLegacyPackaging":true
+        }
+      }]
     ],
     "experiments": {
       "typedRoutes": true

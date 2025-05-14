@@ -5,22 +5,29 @@ import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '~/supabase/supabase';
 import { useRouter } from 'expo-router';
+import {
+  GoogleSignin,
+  GoogleSigninButton,
+  statusCodes,
+} from '@react-native-google-signin/google-signin'
 
 // Complete any in-progress browser auth sessions
 WebBrowser.maybeCompleteAuthSession();
+
 
 /**
  * Mobile Google OAuth flow using Expo AuthSession & Supabase
  * Simplified version that handles navigation internally
  */
 export async function signInWithGoogleMobile() {
+
   // 1) Build the Expo redirect URI
   const redirectUri = AuthSession.makeRedirectUri({
     // @ts-ignore: useProxy is supported at runtime
     useProxy: true,
     scheme: 'kwiyeh',         
   });
-
+  console.log(redirectUri)
   // 2) Get the OAuth URL from Supabase
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

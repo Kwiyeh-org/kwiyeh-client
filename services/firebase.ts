@@ -1,11 +1,12 @@
- //services/firebase.ts
+ // services/firebase.ts
 
 import axios from 'axios';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '~/supabase/supabase';
+import { auth } from './firebaseConfig';
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 
 // Complete any in-progress browser auth sessions
 WebBrowser.maybeCompleteAuthSession();
@@ -14,7 +15,7 @@ WebBrowser.maybeCompleteAuthSession();
 const API_BASE_URL =
   Platform.OS === 'web'
     ? 'http://localhost:8080'
-    : 'http://192.168.216.33:8080';
+    : 'http://192.168.144.33:8080';
 
 /**
  * Mobile Google OAuth flow using Expo AuthSession & Supabase
@@ -23,55 +24,57 @@ const API_BASE_URL =
 export async function signInWithGoogleMobile(
   redirectPath: '/client-dashboard' | '/talent-skillForm' = '/client-dashboard'
 ): Promise<{ success: boolean; userId: string; redirectPath: string }> {
-  // 1) Build the Expo redirect URI (must be registered in Supabase)
+  // 1) Build the Expo redirect URI (still used by Firebase)
   const redirectUri = AuthSession.makeRedirectUri({
     // @ts-ignore: useProxy is supported at runtime though not in types
     useProxy: true,
     scheme: 'kwiyeh',         
   });
 
-  // 2) Get the OAuth URL from Supabase
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: redirectUri,
-      scopes: 'openid email profile',
-    },
-  });
-  if (error) throw error;
-
-  // 3) Launch the browser / webview
-  // Fix for AuthSession.startAsync - use WebBrowser.openAuthSessionAsync instead
-  // This is compatible with newer versions of expo-auth-session
+  // 2) Launch Expo OAuth session against Google's endpoints
   try {
+    // Import firebaseConfig for the OAuth client ID
+    const { firebaseConfig } = require('./firebaseConfig');
+    
+    // For Google OAuth, we need to use a web client ID
+    // This is typically from your Google Cloud Console OAuth configuration
+    // Here we're using apiKey as a placeholder - you should replace this with your actual OAuth client ID
+    const clientId = process.env.GOOGLE_WEB_CLIENT_ID || firebaseConfig.apiKey;
+    
     const result = await WebBrowser.openAuthSessionAsync(
-      data.url!,
+      `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=token id_token&` +
+        `scope=openid%20email%20profile&` +
+        `nonce=${Date.now()}`,
       redirectUri
     );
     
-    // 4) Evaluate the result
     if (result.type !== 'success') {
       throw new Error('Authentication cancelled or failed');
     }
     
-    // 5) Retrieve the session from Supabase client
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
-    if (sessionError) throw sessionError;
-    if (!session) throw new Error('No active session found');
+    // 3) Grab the id_token from the URL fragment
+    const [, hash] = result.url.split('#');
+    const params = Object.fromEntries(new URLSearchParams(hash));
+    const idToken = params.id_token;
+    if (!idToken) throw new Error('No ID token returned');
 
-    // 6) Persist user ID locally
-    const userId = session.user.id;
+    // 4) Exchange token for a Firebase credential
+    const credential = GoogleAuthProvider.credential(idToken);
+    const userCred = await signInWithCredential(auth, credential);
+    const userId = userCred.user.uid;
+
+    // 5) Persist user ID locally
     await AsyncStorage.setItem('userId', userId);
 
-    // 7) Decide destination and return
-    const isClient = session.user.app_metadata?.role === 'client';
+    // 6) Decide destination and return
+    // (you may store role in a custom claim on your backend)
     return {
       success: true,
       userId,
-      redirectPath: isClient ? '/client-dashboard' : '/talent-skilForm',
+      redirectPath, // unchanged
     };
   } catch (error) {
     console.error('Auth session error:', error);
@@ -118,26 +121,25 @@ export const signInWithGoogle = async (
   redirectPath: '/client-dashboard' | '/talent-skillForm' = '/client-dashboard'
 ) => {
   if (Platform.OS === 'web') {
-    // Web: redirect to Supabase-hosted OAuth
-    const redirectTo = window.location.origin + redirectPath;
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        scopes: 'email profile',
-      },
-    });
-    if (error) throw error;
-    if (data.url) window.location.href = data.url;
-  } else {
-    // Native: use Expo+Supabase flow
-    const result = await signInWithGoogleMobile(redirectPath);
-    if (result.success) {
-      // Use your navigation mechanism; for example, with expo-router:
-      // import { useRouter } from 'expo-router';
-      // const router = useRouter(); router.push(result.redirectPath);
+    // Web: use Firebase popup
+    const provider = new GoogleAuthProvider();
+    // Force the account chooser on every call
+    provider.setCustomParameters({ prompt: 'select_account' });
+    
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const userId = result.user.uid;
+      await AsyncStorage.setItem('userId', userId);
+      // navigate
+      window.location.href = redirectPath;
+      return { success: true, userId, redirectPath };
+    } catch (e: any) {
+      console.error('Web Google Sign-In error', e);
+      throw e;
     }
-    return result;
+  } else {
+    // Native: use our mobile flow
+    return await signInWithGoogleMobile(redirectPath);
   }
 };
 
