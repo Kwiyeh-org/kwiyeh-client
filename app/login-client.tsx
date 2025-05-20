@@ -52,7 +52,7 @@ export default function Login() {
       await loginUser(values.email, values.password);
 
       // Navigate to client dashboard after successful login
-      router.push("/client-dashboard");
+      router.push("/client");
     } catch (error: any) {
       console.error("Login error details:", JSON.stringify(error, null, 2));
 

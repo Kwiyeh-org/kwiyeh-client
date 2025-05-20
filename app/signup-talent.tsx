@@ -117,7 +117,8 @@ export default function SignupTalent() {
         password: values.password,
       });
 
-      router.push("/talent-skillForm");
+        router.push("/talent/talent-skillForm");
+
     } catch (error: any) {
       console.error("Detailed error:", JSON.stringify(error, null, 2));
 
@@ -186,7 +187,7 @@ export default function SignupTalent() {
         }
       } else {
         // For web, use the existing signInWithGoogle function
-        await signInWithGoogle("/talent-skillForm");
+        await signInWithGoogle("/talent/talent-skillForm");
       }
     } catch (error: any) {
       console.error("Google Sign In error:", error);
@@ -547,7 +548,8 @@ export default function SignupTalent() {
                   console.log("Firebase user:", userCred.user);
 
                   // Navigate to next screen if successful
-                  router.push("/talent-skillForm");
+                    router.push("/talent/talent-skillForm");
+
                 } catch (error: any) {
                   if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                     // user cancelled the login flow

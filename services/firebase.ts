@@ -15,14 +15,14 @@ WebBrowser.maybeCompleteAuthSession();
 const API_BASE_URL =
   Platform.OS === 'web'
     ? 'http://localhost:8080'
-    : 'http://192.168.144.33:8080';
+    : 'http://192.168.70.33:8080';
 
 /**
  * Mobile Google OAuth flow using Expo AuthSession & Supabase
  * @param redirectPath Path to navigate after auth
  */
 export async function signInWithGoogleMobile(
-  redirectPath: '/client-dashboard' | '/talent-skillForm' = '/client-dashboard'
+  redirectPath: '/client' | '/talent/talent-skillForm' = '/client'
 ): Promise<{ success: boolean; userId: string; redirectPath: string }> {
   // 1) Build the Expo redirect URI (still used by Firebase)
   const redirectUri = AuthSession.makeRedirectUri({
@@ -118,7 +118,7 @@ export const loginUser = async (email: string, password: string) => {
  * @param redirectPath target path after login
  */
 export const signInWithGoogle = async (
-  redirectPath: '/client-dashboard' | '/talent-skillForm' = '/client-dashboard'
+  redirectPath:  '/client' | '/talent/talent-skillForm' = '/client'
 ) => {
   if (Platform.OS === 'web') {
     // Web: use Firebase popup

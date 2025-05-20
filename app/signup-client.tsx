@@ -117,7 +117,7 @@ export default function SignupClient() {
         password: values.password,
       });
 
-      router.push("/client-dashboard");
+       router.push("/client");
     } catch (error: any) {
       console.error("Detailed error:", JSON.stringify(error, null, 2));
 
@@ -186,7 +186,7 @@ export default function SignupClient() {
         }
       } else {
         // For web, use the existing signInWithGoogle function
-        await signInWithGoogle("/client-dashboard");
+        await signInWithGoogle("/client");
       }
     } catch (error: any) {
       console.error("Google Sign In error:", error);
@@ -547,7 +547,7 @@ export default function SignupClient() {
                   console.log("Firebase user:", userCred.user);
 
                   // Navigate to next screen if successful
-                  router.push("/client-dashboard");
+                   router.push("/client");
                 } catch (error: any) {
                   if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                     // user cancelled the login flow

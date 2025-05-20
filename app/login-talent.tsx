@@ -52,7 +52,8 @@ export default function Login() {
       await loginUser(values.email, values.password);
 
       // Navigate to talent dashboard after successful login (maintaining talent-specific routing)
-      router.push("/talent-dashboard");
+       router.push("/talent");
+
     } catch (error: any) {
       console.error("Login error details:", JSON.stringify(error, null, 2));
 

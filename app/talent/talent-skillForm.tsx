@@ -1,4 +1,4 @@
- // app/talent-skillForm.tsx
+ // app/talent/talent-skillForm.tsx
 
 import React, { useState } from "react";
 import { View, Text, SafeAreaView, ScrollView, Alert } from "react-native";
@@ -18,7 +18,8 @@ export default function TalentSkillForm() {
     }
     
     // Navigate to talent dashboard after submitting skills
-    router.push("/talent-dashboard");
+     router.push("/talent");
+
   };
 
   return (

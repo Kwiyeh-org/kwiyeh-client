@@ -65,7 +65,7 @@ export async function signInWithGoogleMobile() {
 
     // 7) Handle navigation internally
     const isClient = session.user.app_metadata?.role === 'client';
-    const redirectPath = isClient ? '/client-dashboard' : '/talent-dashboard';
+    const redirectPath = isClient ? '/client' : '/talent/talent-skillForm';
     
     // Use navigation method available in the current context
     // Note: When using this in a component, you'd import useRouter directly in the component

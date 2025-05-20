@@ -101,13 +101,8 @@ export default function RootLayout() {
         />
 
         {/* Client Dashboard - after successful client login */}
-        <Stack.Screen
-          name="client-dashboard"
-          options={{
-            title: "Client Dashboard",
-            headerShown: false,
-          }}
-        />
+         
+
 
 <Stack.Screen
           name="client-forgot-password"
@@ -153,15 +148,7 @@ export default function RootLayout() {
         />
 
         {/* talent Dashboard - after successful client login */}
-        <Stack.Screen
-          name="talent-dashboard"
-          options={{
-            title: "talent Dashboard",
-            headerShown: false,
-          }}
-        />
-
-
+        
 <Stack.Screen
           name="talent-forgot-password"
           options={{
@@ -189,15 +176,8 @@ export default function RootLayout() {
 
 
 
-        {/* Talent Skill Form - after successful talent login */}
-        <Stack.Screen
-          name="talent-skillForm"
-          options={{
-            title: "Talent Skills",
-            headerShown: false,
-          }}
-        />
-
+   
+         
 
         
 
