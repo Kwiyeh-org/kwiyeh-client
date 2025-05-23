@@ -1,4 +1,4 @@
-{
+ {
   "expo": {
     "name": "kwiyeh",
     "slug": "kwiyeh",
@@ -37,7 +37,6 @@
         "INTERNET"
       ],
       "package": "com.kwiyeh.kwiyeh",
-      "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -62,11 +61,22 @@
     },
     "plugins": [
       "expo-router",
-      ["expo-build-properties",{
-        "android":{
-          "useLegacyPackaging":true
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useLegacyPackaging": true
+          }
         }
-      }]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Kwiyeh to access your camera to take photos.",
+          "photosPermission": "Allow Kwiyeh to access your photo library.",
+          "cameraRollPermission": "Allow Kwiyeh to save photos to your device."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

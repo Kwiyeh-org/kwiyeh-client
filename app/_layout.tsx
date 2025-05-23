@@ -179,7 +179,9 @@ export default function RootLayout() {
    
          
 
-        
+        <Stack.Screen name="client" options={{ headerShown: false }} />
+        <Stack.Screen name="talent" options={{ headerShown: false }} />
+
 
         {/* 
           The not-found screen is automatically handled 

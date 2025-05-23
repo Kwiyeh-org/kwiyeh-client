@@ -1,9 +1,21 @@
-//app/client/_layout.tsx
+ // app/client/_layout.tsx
 
+ import { Stack } from "expo-router";
+import { View } from "react-native";
 
- import { Slot } from "expo-router";
-import React from "react";
-
-export default function ClientLayout() {
-  return <Slot />;
+export default function ClientStackLayout() {
+  return (
+    <View style={{ flex: 1 }}>
+      <Stack 
+        screenOptions={{ 
+          headerShown: false,
+          contentStyle: { 
+            flex: 1,
+            backgroundColor: '#fff',
+          },
+          animation: 'slide_from_right',
+        }} 
+      />
+    </View>
+  );
 }

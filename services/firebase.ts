@@ -22,7 +22,7 @@ const API_BASE_URL =
  * @param redirectPath Path to navigate after auth
  */
 export async function signInWithGoogleMobile(
-  redirectPath: '/client' | '/talent/talent-skillForm' = '/client'
+  redirectPath: '/client' | '/talent/modals/talent-skillForm' = '/client'
 ): Promise<{ success: boolean; userId: string; redirectPath: string }> {
   // 1) Build the Expo redirect URI (still used by Firebase)
   const redirectUri = AuthSession.makeRedirectUri({
@@ -118,7 +118,7 @@ export const loginUser = async (email: string, password: string) => {
  * @param redirectPath target path after login
  */
 export const signInWithGoogle = async (
-  redirectPath:  '/client' | '/talent/talent-skillForm' = '/client'
+  redirectPath:  '/client' | '/talent/modals/talent-skillForm' = '/client'
 ) => {
   if (Platform.OS === 'web') {
     // Web: use Firebase popup

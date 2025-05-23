@@ -547,7 +547,7 @@ export default function SignupClient() {
                   console.log("Firebase user:", userCred.user);
 
                   // Navigate to next screen if successful
-                   router.push("/client");
+                   router.replace("/client");
                 } catch (error: any) {
                   if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                     // user cancelled the login flow

@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "526766693911",
+    "firebase_url": "https://kwiyeh-26c18-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "kwiyeh-26c18",
+    "storage_bucket": "kwiyeh-26c18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:526766693911:android:5219bca7cf72b5854ec652",
+        "android_client_info": {
+          "package_name": "kwiyeh.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "526766693911-33hjbi26mjndnijda5fgg5iaehm07g54.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNfWjgWRhkHg1uzeFsOyDK2417p1HHZvM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "526766693911-33hjbi26mjndnijda5fgg5iaehm07g54.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
