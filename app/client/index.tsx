@@ -87,6 +87,7 @@ export default function ClientDashboard() {
           horizontal 
           showsHorizontalScrollIndicator={false}
           style={styles.tabsContainer}
+           contentContainerStyle={{ justifyContent: "center", flexGrow: 1 }}
         >
           <View style={styles.tabsRow}>
             {TABS.map(tab => (
@@ -195,9 +196,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   tabsRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-  },
+  flexDirection: "row",
+  justifyContent: "center", // <-- add this
+  width: "100%", // <-- add this
+},
   tabItem: {
     alignItems: "center",
     paddingVertical: 6,

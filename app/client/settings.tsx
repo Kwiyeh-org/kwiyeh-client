@@ -1,5 +1,7 @@
 //app/client/settings.tsx
 
+ // app/client/settings.tsx
+
 import React, { useState, useEffect } from "react";
 import { 
   View, 
@@ -10,13 +12,13 @@ import {
   Image,
   Platform,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  StyleSheet
 } from "react-native";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 
@@ -86,13 +88,8 @@ export default function ClientSettings() {
   const saveProfile = async () => {
     try {
       setIsSaving(true);
-      
-      // Save to AsyncStorage
       await AsyncStorage.setItem("userName", fullName);
       await AsyncStorage.setItem("userLocation", location);
-      
-      // In a real app, you would also save to your backend here
-      
       Alert.alert("Success", "Profile updated successfully");
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -105,10 +102,7 @@ export default function ClientSettings() {
   // Handle logout
   const handleLogout = async () => {
     try {
-      // Clear necessary storage items (don't clear profile data)
       await AsyncStorage.removeItem("idToken");
-      
-      // Navigate to login screen
       router.replace("/login-client");
     } catch (error) {
       console.error("Error during logout:", error);
@@ -116,71 +110,66 @@ export default function ClientSettings() {
     }
   };
 
-  // Show location picker
- 
-
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white justify-center items-center">
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#166534" />
-        <Text className="mt-4 text-gray-600">Loading profile...</Text>
+        <Text style={styles.loadingText}>Loading profile...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1">
-        <View className="p-6">
-          <Text className="text-3xl font-bold mb-8">Settings</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Settings</Text>
           
           {/* Profile Photo */}
-          <View className="items-center mb-8">
+          <View style={styles.photoContainer}>
             <TouchableOpacity 
               onPress={pickImage}
-              className="relative mb-2"
+              style={styles.photoButton}
               accessibilityLabel="Change profile picture"
             >
-              <View className="h-24 w-24 rounded-full bg-gray-200 items-center justify-center overflow-hidden">
+              <View style={styles.photoWrapper}>
                 {profileImage ? (
                   <Image 
                     source={{ uri: profileImage }} 
-                    className="h-full w-full" 
-                    resizeMode="cover"
+                    style={styles.profileImage}
                   />
                 ) : (
                   <FontAwesome name="user" size={40} color="#666666" />
                 )}
               </View>
-              <View className="absolute bottom-0 right-0 bg-green-800 p-2 rounded-full">
+              <View style={styles.cameraButton}>
                 <Feather name="camera" size={16} color="white" />
               </View>
             </TouchableOpacity>
-            <Text className="text-sm text-gray-500">Tap to change profile photo</Text>
+            <Text style={styles.photoText}>Tap to change profile photo</Text>
           </View>
           
           {/* Profile Information */}
-          <View className="space-y-6">
+          <View style={styles.formSection}>
             {/* Name */}
-            <View>
-              <Text className="text-base font-medium mb-2">Full Name</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Full Name</Text>
               <Input 
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Your full name"
-                className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
+                style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#d1d5db', paddingHorizontal: 16, paddingVertical: 12, fontSize: 16 }}
               />
             </View>
             
             {/* Location */}
-            <View>
-              <Text className="text-base font-medium mb-2">Location</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Location</Text>
               <TouchableOpacity 
-                className="flex-row items-center bg-white rounded-xl px-4 py-3 border border-gray-300"
-               
+                style={styles.locationButton}
               >
-                <Ionicons name="location-sharp" size={20} color="#666666" style={{ marginRight: 8 }} />
-                <Text className={location ? "text-black" : "text-gray-400"}>
+                <Ionicons name="location-sharp" size={20} color="#666666" style={styles.locationIcon} />
+                <Text style={[styles.locationText, location ? styles.filledText : styles.placeholderText]}>
                   {location || "Set your location"}
                 </Text>
               </TouchableOpacity>
@@ -189,25 +178,145 @@ export default function ClientSettings() {
           
           {/* Save Button */}
           <Button 
-            className="bg-green-800 py-3 rounded-xl mt-8"
+            style={{ backgroundColor: "#166534", borderRadius: 14, marginTop: 32, paddingVertical: 14 }}
             onPress={saveProfile}
             disabled={isSaving}
           >
-            <Text className="text-white font-semibold">
+            <Text style={styles.saveButtonText}>
               {isSaving ? "Saving..." : "Save Changes"}
             </Text>
           </Button>
           
           {/* Logout */}
           <TouchableOpacity 
-            className="flex-row items-center justify-center mt-8"
+            style={styles.logoutButton}
             onPress={handleLogout}
           >
             <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
-            <Text className="ml-2 text-red-500 font-medium">Logout</Text>
+            <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#666',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 24,
+    ...Platform.select({
+      web: {
+        maxWidth: 600,
+        marginHorizontal: 'auto',
+      },
+    }),
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    color: '#111',
+  },
+  photoContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  photoButton: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  photoWrapper: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#166534',
+    padding: 8,
+    borderRadius: 20,
+  },
+  photoText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  formSection: {
+    gap: 20,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#333',
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  locationIcon: {
+    marginRight: 8,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 16,
+  },
+  filledText: {
+    color: '#111',
+  },
+  placeholderText: {
+    color: '#9ca3af',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  logoutText: {
+    marginLeft: 8,
+    color: '#ef4444',
+    fontWeight: '500',
+  },
+});
