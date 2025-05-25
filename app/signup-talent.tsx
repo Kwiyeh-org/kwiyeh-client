@@ -1,5 +1,6 @@
  // app/signup-talent.tsx
 
+ 
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -19,24 +20,17 @@ import {
   statusCodes,
 } from "@react-native-google-signin/google-signin";
 
-// Import Firebase authentication related modules
-import { auth } from "@/services/firebaseConfig";
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Checkbox as MobileCheckbox } from "~/components/ui/checkbox";
 import { Checkbox as WebCheckbox } from "~/components/ui-web/web-checkbox";
-import CountrySelect, {
-  Country,
-} from "~/components/country-component/CountrySelect";
+import CountrySelect, { Country } from "~/components/country-component/CountrySelect";
 import Entypo from "@expo/vector-icons/Entypo";
 import { Formik } from "formik";
 import * as Yup from "yup";
-import { registerUser } from "@/services/firebase";
-import { signInWithGoogle } from "@/services/firebase";
-import { signInWithGoogleMobile } from "~/services/auth";
+import { registerUser, signInWithGoogle, signInWithGoogleMobile } from "@/services/firebase";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -73,42 +67,30 @@ export default function SignupTalent() {
     code: "US",
     flag: "🇺🇸",
   };
-  const [selectedCountry, setSelectedCountry] =
-    useState<Country>(initialCountry);
+  const [selectedCountry, setSelectedCountry] = useState<Country>(initialCountry);
 
   // Platform-specific checkbox component
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
 
-  // Check Google Sign-In availability on mobile
   useEffect(() => {
     async function checkGoogleSignInAvailability() {
       if (Platform.OS !== "web") {
         try {
-          // Try to dynamically require the module
-          const GoogleSigninModule = require("@react-native-google-signin/google-signin");
+          require("@react-native-google-signin/google-signin");
           setIsGoogleSignInAvailable(true);
         } catch (error) {
-          console.warn("Google Sign-In module not available:", error);
           setIsGoogleSignInAvailable(false);
         }
       }
     }
-
     checkGoogleSignInAvailability();
   }, []);
 
-  // Handle signup submission with improved error handling
+  // Handle signup with email/password
   const handleSubmit = async (values: any) => {
     try {
       setIsSigningUp(true);
-
       const formattedPhone = `${selectedCountry.dial_code}${values.phoneNumber}`;
-
-      console.log("Attempting to register with:", {
-        fullName: values.fullName,
-        email: values.email,
-        phoneNumber: formattedPhone,
-      });
 
       await registerUser({
         fullName: values.fullName,
@@ -117,11 +99,14 @@ export default function SignupTalent() {
         password: values.password,
       });
 
-        router.push("/talent/modals/talent-skillForm");
+      // Store talent name under "talentName"
+      await AsyncStorage.setItem("talentName", values.fullName);
 
+      // Optionally, also store for profile header if needed
+      await AsyncStorage.setItem("userName", values.fullName);
+
+      router.push("/talent/modals/talent-skillForm");
     } catch (error: any) {
-      console.error("Detailed error:", JSON.stringify(error, null, 2));
-
       if (error.message === "Email already in use") {
         Alert.alert("Signup Failed", "This email is already in use.");
       } else if (
@@ -135,9 +120,7 @@ export default function SignupTalent() {
       } else {
         Alert.alert(
           "Signup Failed",
-          `Error: ${
-            error.message || "Unknown error occurred"
-          }. Please try again.`
+          `Error: ${error.message || "Unknown error occurred"}. Please try again.`
         );
       }
     } finally {
@@ -150,47 +133,27 @@ export default function SignupTalent() {
     try {
       setIsSigningUp(true);
 
-      // Sign out first to clear previous session and force account picker
       if (Platform.OS !== "web") {
         try {
-          // Just sign out to clear any existing sessions - skip checking if signed in
           await GoogleSignin.signOut();
-          console.log("Successfully signed out from previous Google session");
-        } catch (error) {
-          console.log("Error signing out:", error);
-          // Continue with sign-in process even if sign-out fails
-        }
+        } catch {}
       }
 
-      // Check if Google Sign-In is available on mobile
       if (Platform.OS !== "web" && !isGoogleSignInAvailable) {
         throw new Error(
           "Google Sign-In is not available on this device. Please sign up with email and password instead."
         );
       }
 
-      // Use the new signInWithGoogleMobile function for mobile platforms
+      // Use the unified Google sign-in with the `talentName` param
       if (Platform.OS !== "web") {
-        try {
-          await signInWithGoogleMobile();
-          // Note: Navigation happens inside signInWithGoogleMobile
-        } catch (error: any) {
-          if (error.message?.includes("is not a function")) {
-            // Fallback if there's an issue with the auth flow
-            Alert.alert(
-              "Authentication Error",
-              "There was a problem with the Google Sign-In process. Please try again or use email/password instead."
-            );
-          } else {
-            throw error;
-          }
-        }
+        await signInWithGoogleMobile("/talent/modals/talent-skillForm", true);
       } else {
-        // For web, use the existing signInWithGoogle function
-        await signInWithGoogle("/talent/modals/talent-skillForm");
+        await signInWithGoogle("/talent/modals/talent-skillForm", true);
       }
+      // After successful sign-in, navigation will happen automatically
+
     } catch (error: any) {
-      console.error("Google Sign In error:", error);
       Alert.alert(
         "Google Sign In Failed",
         error.message || "Authentication failed"
@@ -216,33 +179,22 @@ export default function SignupTalent() {
       ? require("@/assets/images/Desktoplogin-background.svg")
       : require("@/assets/images/signup-background.png");
 
-  // Define web-specific styles to use with proper typing
-  const webImageBackgroundStyle =
-    Platform.OS === "web"
-      ? ({
-          minHeight: "100%",
-          maxHeight: "100%",
-          overflow: "hidden",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        } as unknown as ViewStyle)
-      : undefined;
+  // Define web-specific styles
+  const webImageBackgroundStyle = Platform.OS === "web"
+    ? ({
+        minHeight: "100%",
+        maxHeight: "100%",
+        overflow: "hidden",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      } as unknown as ViewStyle)
+    : undefined;
 
-  const webScrollViewStyle =
-    Platform.OS === "web"
-      ? ({
-          maxHeight: "100%",
-        } as ViewStyle)
-      : undefined;
-
-  // Google sign-in button text based on availability and platform
-  const getGoogleButtonText = () => {
-    if (isSigningUp) return "Processing...";
-    if (Platform.OS !== "web" && !isGoogleSignInAvailable) {
-      return "Google Sign-In Unavailable";
-    }
-    return "Sign up with Google";
-  };
+  const webScrollViewStyle = Platform.OS === "web"
+    ? ({
+        maxHeight: "100%",
+      } as ViewStyle)
+    : undefined;
 
   return (
     <ImageBackground
@@ -268,9 +220,7 @@ export default function SignupTalent() {
 
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Sign up</Text>
-            <Text style={styles.headerSubtitle}>
-              Create your Kwiyeh account
-            </Text>
+            <Text style={styles.headerSubtitle}>Create your Kwiyeh account</Text>
           </View>
 
           <Formik
@@ -471,9 +421,8 @@ export default function SignupTalent() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Conditional rendering based on platform */}
+          {/* Google Sign-In */}
           {Platform.OS === "web" ? (
-            /* Web Google Sign-In Button */
             <Button
               className="bg-white border border-gray-300 rounded-full py-3 flex-row justify-center items-center mb-4"
               onPress={handleGoogleSignIn}
@@ -482,6 +431,7 @@ export default function SignupTalent() {
             >
               <View style={styles.googleButtonContent}>
                 <View style={styles.googleIconContainer}>
+                  {/* SVG Google Icon here */}
                   <svg
                     width="18"
                     height="18"
@@ -512,76 +462,16 @@ export default function SignupTalent() {
               </View>
             </Button>
           ) : (
-            /* Mobile Google Sign-In Button */
             <GoogleSigninButton
               size={GoogleSigninButton.Size.Wide}
               color={GoogleSigninButton.Color.Dark}
-              onPress={async () => {
-                console.log("Signing in with Google");
-                try {
-                  setIsSigningUp(true);
-
-                  // Sign out first to clear previous session and force account picker
-                  try {
-                    // Just sign out to clear any existing sessions - skip checking if signed in
-                    await GoogleSignin.signOut();
-                    console.log(
-                      "Successfully signed out from previous Google session"
-                    );
-                  } catch (signOutError) {
-                    console.log("Error signing out:", signOutError);
-                    // Continue with sign-in process even if sign-out fails
-                  }
-
-                  // Proceed with sign-in
-                  await GoogleSignin.hasPlayServices();
-                  const userInfo = await GoogleSignin.signIn();
-                  console.log("User Info: ", userInfo);
-
-                  // ✂️ This is the key fix: explicitly fetch tokens (including idToken)
-                  const { idToken } = await GoogleSignin.getTokens();
-                  if (!idToken) throw new Error("No ID token present!");
-
-                  // Exchange it for a Firebase credential
-                  const credential = GoogleAuthProvider.credential(idToken);
-                  const userCred = await signInWithCredential(auth, credential);
-                  console.log("Firebase user:", userCred.user);
-
-                  // Navigate to next screen if successful
-                    router.push("/talent/modals/talent-skillForm");
-
-                } catch (error: any) {
-                  if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                    // user cancelled the login flow
-                    console.log("cancelled");
-                  } else if (error.code === statusCodes.IN_PROGRESS) {
-                    // operation (e.g. sign in) is in progress already
-                    console.log("progress");
-                  } else if (
-                    error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
-                  ) {
-                    // play services not available or outdated
-                    console.log("no playstore");
-                  } else {
-                    // some other error happened
-                    console.log(error);
-                    Alert.alert(
-                      "Google Sign In Failed",
-                      error.message || "Authentication failed"
-                    );
-                  }
-                } finally {
-                  setIsSigningUp(false);
-                }
-              }}
+              onPress={handleGoogleSignIn}
             />
           )}
-
-          {/* Display a warning message if Google Sign-In is not available on mobile */}
+          {/* Google Sign-In warning */}
           {Platform.OS !== "web" && !isGoogleSignInAvailable && (
             <Text style={styles.warningText}>
-              Google Sign-In is not available. Please install the required
-              module or sign up with email and password.
+              Google Sign-In is not available. Please install the required module or sign up with email and password.
             </Text>
           )}
         </View>
@@ -589,7 +479,6 @@ export default function SignupTalent() {
     </ImageBackground>
   );
 }
-
 // Define combined style type
 type Styles = {
   backgroundImage: ViewStyle;

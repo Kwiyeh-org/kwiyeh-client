@@ -37,6 +37,8 @@ import { registerUser } from "@/services/firebase";
 import { signInWithGoogle } from "@/services/firebase";
 import { signInWithGoogleMobile } from "~/services/auth";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -116,6 +118,7 @@ export default function SignupClient() {
         phoneNumber: formattedPhone,
         password: values.password,
       });
+await AsyncStorage.setItem("userName", values.fullName);
 
        router.push("/client");
     } catch (error: any) {
