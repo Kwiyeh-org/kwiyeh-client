@@ -1,13 +1,11 @@
 //app/client/settings.tsx
 
- // app/client/settings.tsx
-
-import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  SafeAreaView, 
+ import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
   ScrollView,
   Image,
   Platform,
@@ -21,6 +19,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
+import { auth } from "@/services/firebaseConfig";
+import { deleteUser } from "firebase/auth";
 
 export default function ClientSettings() {
   const router = useRouter();
@@ -29,8 +29,8 @@ export default function ClientSettings() {
   const [location, setLocation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Load user data when component mounts
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -38,7 +38,7 @@ export default function ClientSettings() {
         const storedName = await AsyncStorage.getItem("userName");
         const storedImage = await AsyncStorage.getItem("userProfileImage");
         const storedLocation = await AsyncStorage.getItem("userLocation");
-        
+
         if (storedName) setFullName(storedName);
         if (storedImage) setProfileImage(storedImage);
         if (storedLocation) setLocation(storedLocation);
@@ -56,7 +56,6 @@ export default function ClientSettings() {
   // Image picker function
   const pickImage = async () => {
     try {
-      // Request permissions first
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -65,7 +64,6 @@ export default function ClientSettings() {
         }
       }
 
-      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -90,7 +88,12 @@ export default function ClientSettings() {
       setIsSaving(true);
       await AsyncStorage.setItem("userName", fullName);
       await AsyncStorage.setItem("userLocation", location);
-      Alert.alert("Success", "Profile updated successfully");
+      if (Platform.OS === "web") {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2200);
+      } else {
+        Alert.alert("Success", "Profile updated successfully");
+      }
     } catch (error) {
       console.error("Error saving profile:", error);
       Alert.alert("Error", "Failed to save profile changes");
@@ -99,15 +102,47 @@ export default function ClientSettings() {
     }
   };
 
-  // Handle logout
+  // --- LOGOUT: remove only session keys ---
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("idToken");
+      await AsyncStorage.multiRemove([
+        "idToken",
+        "userId"
+      ]);
+      if (auth && auth.signOut) await auth.signOut?.();
       router.replace("/login-client");
     } catch (error) {
       console.error("Error during logout:", error);
       Alert.alert("Error", "Failed to log out");
     }
+  };
+
+  // --- ACCOUNT DELETION: delete Firebase user and ALL local data ---
+  const handleAccountDeletion = async () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action is permanent.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const currentUser = auth.currentUser;
+              if (currentUser) {
+                await deleteUser(currentUser);
+              }
+              await AsyncStorage.clear();
+              router.replace("/signup-client");
+            } catch (error) {
+              console.error("Error deleting account:", error);
+              Alert.alert("Error", "Failed to delete account. Try again.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (isLoading) {
@@ -121,21 +156,29 @@ export default function ClientSettings() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Success message for web */}
+      {Platform.OS === "web" && saveSuccess && (
+        <View style={{ backgroundColor: "#d1fae5", padding: 12, borderRadius: 8, margin: 18 }}>
+          <Text style={{ color: "#166534", fontWeight: "bold", textAlign: "center" }}>
+            Profile updated successfully!
+          </Text>
+        </View>
+      )}
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
           <Text style={styles.title}>Settings</Text>
-          
+
           {/* Profile Photo */}
           <View style={styles.photoContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={pickImage}
               style={styles.photoButton}
               accessibilityLabel="Change profile picture"
             >
               <View style={styles.photoWrapper}>
                 {profileImage ? (
-                  <Image 
-                    source={{ uri: profileImage }} 
+                  <Image
+                    source={{ uri: profileImage }}
                     style={styles.profileImage}
                   />
                 ) : (
@@ -148,26 +191,32 @@ export default function ClientSettings() {
             </TouchableOpacity>
             <Text style={styles.photoText}>Tap to change profile photo</Text>
           </View>
-          
+
           {/* Profile Information */}
           <View style={styles.formSection}>
             {/* Name */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
-              <Input 
+              <Input
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Your full name"
-                style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#d1d5db', paddingHorizontal: 16, paddingVertical: 12, fontSize: 16 }}
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#d1d5db",
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  fontSize: 16,
+                }}
               />
             </View>
-            
+
             {/* Location */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Location</Text>
-              <TouchableOpacity 
-                style={styles.locationButton}
-              >
+              <TouchableOpacity style={styles.locationButton}>
                 <Ionicons name="location-sharp" size={20} color="#666666" style={styles.locationIcon} />
                 <Text style={[styles.locationText, location ? styles.filledText : styles.placeholderText]}>
                   {location || "Set your location"}
@@ -175,9 +224,9 @@ export default function ClientSettings() {
               </TouchableOpacity>
             </View>
           </View>
-          
+
           {/* Save Button */}
-          <Button 
+          <Button
             style={{ backgroundColor: "#166534", borderRadius: 14, marginTop: 32, paddingVertical: 14 }}
             onPress={saveProfile}
             disabled={isSaving}
@@ -186,14 +235,23 @@ export default function ClientSettings() {
               {isSaving ? "Saving..." : "Save Changes"}
             </Text>
           </Button>
-          
+
           {/* Logout */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.logoutButton}
             onPress={handleLogout}
           >
             <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
             <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+
+          {/* Delete Account */}
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleAccountDeletion}
+          >
+            <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
+            <Text style={styles.deleteText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -318,5 +376,21 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: '#ef4444',
     fontWeight: '500',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+  },
+  deleteText: {
+    marginLeft: 8,
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
   },
 });

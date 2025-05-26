@@ -1,6 +1,6 @@
-// // app/talent/index.tsx(talent-dashboard.tsx)
+// app/talent/index.tsx(talent-dashboard.tsx)
 
- import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Feather } from "@expo/vector-icons";
+import { auth } from "@/services/firebaseConfig";
+import { useFocusEffect } from "@react-navigation/native";
 
 const TABS = [
   { key: "community", label: "Community" },
@@ -33,19 +35,35 @@ export default function TalentDashboard() {
   const isWeb = Platform.OS === "web";
   const headerHeight = isWeb ? Math.min(180, height * 0.25) : 180;
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      const [storedName, storedImage] = await AsyncStorage.multiGet([
-        "talentName",
-        "talentProfileImage",
-      ]);
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadUserData = async () => {
+        let storedName = await AsyncStorage.getItem("talentName");
+        const storedImage = await AsyncStorage.getItem("talentProfileImage");
 
-      if (storedName[1]) setUserName(storedName[1]);
-      if (storedImage[1]) setProfileImage(storedImage[1]);
+        // If no talentName yet, fallback to Google displayName (only ONCE)
+        if (!storedName || storedName.trim() === "") {
+          if (auth.currentUser) {
+            const googleName = auth.currentUser.displayName || "";
+            if (googleName) {
+              await AsyncStorage.setItem("talentName", googleName);
+              storedName = googleName;
+            }
+          }
+        }
+        setUserName(storedName || "");
+        setProfileImage(storedImage || null);
 
-      // Calculate profile completion
-      const [skills, exp, services, pricing, portfolio, avail, location] =
-        await AsyncStorage.multiGet([
+        // Profile completion logic
+        const [
+          skills,
+          exp,
+          services,
+          pricing,
+          portfolio,
+          avail,
+          location,
+        ] = await AsyncStorage.multiGet([
           "talentSkills",
           "talentExperience",
           "talentServices",
@@ -55,19 +73,20 @@ export default function TalentDashboard() {
           "talentLocation",
         ]);
 
-      const filled = [
-        skills[1],
-        exp[1],
-        services[1],
-        pricing[1],
-        portfolio[1],
-        avail[1],
-        location[1],
-      ].filter(Boolean).length;
-      setProfileCompletion(Math.round((filled / 7) * 100));
-    };
-    loadUserData();
-  }, []);
+        const filled = [
+          skills[1],
+          exp[1],
+          services[1],
+          pricing[1],
+          portfolio[1],
+          avail[1],
+          location[1],
+        ].filter(Boolean).length;
+        setProfileCompletion(Math.round((filled / 7) * 100));
+      };
+      loadUserData();
+    }, [])
+  );
 
   // Content for each tab
   const renderTabContent = () => {
@@ -170,7 +189,9 @@ export default function TalentDashboard() {
                 >
                   {tab.label}
                 </Text>
-                {activeTab === tab.key && <View style={styles.activeUnderline} />}
+                {activeTab === tab.key && (
+                  <View style={styles.activeUnderline} />
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -315,3 +336,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+ 

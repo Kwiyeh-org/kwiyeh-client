@@ -1,11 +1,11 @@
 //app/client/index.tsx(client-dashboard.tsx)
 
-  import React, { useEffect, useState } from "react";
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  Image, 
+  import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
   StyleSheet,
   Platform,
   SafeAreaView,
@@ -14,12 +14,13 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
-
+import { auth } from "@/services/firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Bookings from "./bookings";
 import SearchTalent from "./search-talent";
 import Messages from "./messages";
- 
+import { useFocusEffect } from "@react-navigation/native";
+
 // Tab config
 const TABS = [
   { key: "community", label: "Community" },
@@ -38,24 +39,34 @@ export default function ClientDashboard() {
   const isWeb = Platform.OS === 'web';
   const headerHeight = isWeb ? Math.min(180, height * 0.25) : 180;
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      const storedName = await AsyncStorage.getItem("userName");
-      const storedImage = await AsyncStorage.getItem("userProfileImage");
-      if (storedName) setUserName(storedName);
-      if (storedImage) setProfileImage(storedImage);
-    };
-    loadUserData();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadUserData = async () => {
+        let storedName = await AsyncStorage.getItem("userName");
+        const storedImage = await AsyncStorage.getItem("userProfileImage");
+
+        // If no userName yet, try to get from Firebase auth (e.g., Google user)
+        if (!storedName && auth.currentUser) {
+          storedName = auth.currentUser.displayName || "";
+          if (storedName) {
+            await AsyncStorage.setItem("userName", storedName);
+          }
+        }
+
+        setUserName(storedName || "");
+        setProfileImage(storedImage || null);
+      };
+      loadUserData();
+    }, [])
+  );
 
   const handleTabPress = (tabKey: string) => {
     setActiveTab(tabKey);
-  
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <ScrollView 
+      <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1 }}
         bounces={false}
@@ -83,11 +94,11 @@ export default function ClientDashboard() {
         </View>
 
         {/* Custom Top Tabs */}
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.tabsContainer}
-           contentContainerStyle={{ justifyContent: "center", flexGrow: 1 }}
+          contentContainerStyle={{ justifyContent: "center", flexGrow: 1 }}
         >
           <View style={styles.tabsRow}>
             {TABS.map(tab => (
@@ -117,18 +128,15 @@ export default function ClientDashboard() {
 
         {/* Content Area */}
         <View style={styles.contentContainer}>
-          <View style={styles.contentContainer}>
-  {activeTab === "community" && (
-    <View>
-      <Text>Your dashboard here</Text>
-      {/* Add actual dashboard content! */}
-    </View>
-  )}
-  {activeTab === "bookings" && <Bookings />}
-  {activeTab === "search-talent" && <SearchTalent />}
-  {activeTab === "messages" && <Messages />}
-</View>
-
+          {activeTab === "community" && (
+            <View>
+              <Text>Your dashboard here</Text>
+              {/* Add actual dashboard content! */}
+            </View>
+          )}
+          {activeTab === "bookings" && <Bookings />}
+          {activeTab === "search-talent" && <SearchTalent />}
+          {activeTab === "messages" && <Messages />}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -196,10 +204,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   tabsRow: {
-  flexDirection: "row",
-  justifyContent: "center", // <-- add this
-  width: "100%", // <-- add this
-},
+    flexDirection: "row",
+    justifyContent: "center",
+    width: "100%",
+  },
   tabItem: {
     alignItems: "center",
     paddingVertical: 6,
@@ -226,5 +234,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+  },
+  deleteText: {
+    marginLeft: 8,
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
   },
 });

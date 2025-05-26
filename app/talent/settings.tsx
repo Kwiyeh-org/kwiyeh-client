@@ -1,17 +1,18 @@
-// //app/talent/settings.tsx
+//app/talent/settings.tsx
+
 
  import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  SafeAreaView, 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
   ScrollView,
   Image,
   Platform,
   Alert,
   ActivityIndicator,
-  StyleSheet
+  StyleSheet,
 } from "react-native";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
@@ -30,6 +31,7 @@ export default function TalentSettings() {
   const [availability, setAvailability] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -41,16 +43,15 @@ export default function TalentSettings() {
           storedLocation,
           storedServices,
           storedPricing,
-          storedAvailability
+          storedAvailability,
         ] = await AsyncStorage.multiGet([
           "talentName",
           "talentProfileImage",
           "talentLocation",
           "talentServices",
           "talentPricing",
-          "talentAvailability"
+          "talentAvailability",
         ]);
-
         if (storedName[1]) setFullName(storedName[1]);
         if (storedImage[1]) setProfileImage(storedImage[1]);
         if (storedLocation[1]) setLocation(storedLocation[1]);
@@ -63,27 +64,24 @@ export default function TalentSettings() {
         setIsLoading(false);
       }
     };
-
     loadUserData();
   }, []);
 
   const pickImage = async () => {
     try {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== "web") {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
+        if (status !== "granted") {
+          Alert.alert("Permission Required", "We need camera roll permissions!");
           return;
         }
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
         setProfileImage(uri);
@@ -104,8 +102,12 @@ export default function TalentSettings() {
         ["talentPricing", pricing],
         ["talentAvailability", availability],
       ]);
-      
-      Alert.alert("Success", "Profile updated successfully!");
+      if (Platform.OS === "web") {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2200); // Show message for 2.2 seconds
+      } else {
+        Alert.alert("Success", "Profile updated successfully!");
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to save profile changes");
     } finally {
@@ -113,13 +115,54 @@ export default function TalentSettings() {
     }
   };
 
+  // Logout: Remove ONLY session keys (leave profile keys!)
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("idToken");
+      await AsyncStorage.multiRemove([
+        "idToken",
+        "userId",
+        // DO NOT remove profile keys on logout!
+      ]);
       router.replace("/login-talent");
     } catch (error) {
       Alert.alert("Error", "Failed to log out");
     }
+  };
+
+  // Account deletion: Remove all talent keys
+  const handleAccountDeletion = async () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action is permanent.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AsyncStorage.multiRemove([
+                "idToken",
+                "userId",
+                "talentName",
+                "talentProfileImage",
+                "talentLocation",
+                "talentServices",
+                "talentPricing",
+                "talentAvailability",
+                "talentSkills",
+                "talentExperience",
+                "talentPortfolio",
+                // Add any other talent-only keys you use
+              ]);
+              router.replace("/signup-talent");
+            } catch (error) {
+              Alert.alert("Error", "Failed to delete account. Try again.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading) {
@@ -133,20 +176,27 @@ export default function TalentSettings() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Success message for web */}
+      {Platform.OS === "web" && saveSuccess && (
+        <View style={{ backgroundColor: "#d1fae5", padding: 12, borderRadius: 8, margin: 18 }}>
+          <Text style={{ color: "#166534", fontWeight: "bold", textAlign: "center" }}>
+            Profile updated successfully!
+          </Text>
+        </View>
+      )}
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
           <Text style={styles.title}>Settings</Text>
-          
           {/* Profile Photo */}
           <View style={styles.photoContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={pickImage}
               style={styles.photoButton}
             >
               <View style={styles.photoWrapper}>
                 {profileImage ? (
-                  <Image 
-                    source={{ uri: profileImage }} 
+                  <Image
+                    source={{ uri: profileImage }}
                     style={styles.profileImage}
                   />
                 ) : (
@@ -159,37 +209,30 @@ export default function TalentSettings() {
             </TouchableOpacity>
             <Text style={styles.photoText}>Tap to change profile photo</Text>
           </View>
-          
           {/* Profile Information */}
           <View style={styles.formSection}>
-            {/* Name */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
-              <Input 
+              <Input
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Your full name"
                 className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
               />
             </View>
-            
-            {/* Location */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Location</Text>
-              <TouchableOpacity 
-                style={styles.locationButton}
-              >
+              <TouchableOpacity style={styles.locationButton}>
                 <Ionicons name="location-sharp" size={20} color="#666666" style={styles.locationIcon} />
                 <Text style={[styles.locationText, location ? styles.filledText : styles.placeholderText]}>
                   {location || "Set your location"}
                 </Text>
               </TouchableOpacity>
             </View>
-
             {/* Services */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Services Offered</Text>
-              <Input 
+              <Input
                 value={services}
                 onChangeText={setServices}
                 placeholder="e.g., Hair Styling, Makeup, Photography"
@@ -197,22 +240,20 @@ export default function TalentSettings() {
                 multiline
               />
             </View>
-
             {/* Pricing */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Pricing</Text>
-              <Input 
+              <Input
                 value={pricing}
                 onChangeText={setPricing}
                 placeholder="e.g., $50/hour, Packages from $200"
                 className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
               />
             </View>
-
             {/* Availability */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Availability</Text>
-              <Input 
+              <Input
                 value={availability}
                 onChangeText={setAvailability}
                 placeholder="e.g., Mon-Fri 9AM-5PM"
@@ -220,9 +261,8 @@ export default function TalentSettings() {
               />
             </View>
           </View>
-          
           {/* Save Button */}
-          <Button 
+          <Button
             className="bg-green-800 py-3 rounded-xl mt-8"
             onPress={saveProfile}
             disabled={isSaving}
@@ -231,14 +271,21 @@ export default function TalentSettings() {
               {isSaving ? "Saving..." : "Save Changes"}
             </Text>
           </Button>
-          
           {/* Logout */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.logoutButton}
             onPress={handleLogout}
           >
             <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
             <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+          {/* Delete Account */}
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleAccountDeletion}
+          >
+            <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
+            <Text style={styles.deleteText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -249,17 +296,17 @@ export default function TalentSettings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     marginTop: 16,
-    color: '#666',
+    color: "#666",
   },
   scrollView: {
     flex: 1,
@@ -269,49 +316,49 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         maxWidth: 600,
-        marginHorizontal: 'auto',
+        marginHorizontal: "auto",
       },
     }),
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 24,
-    color: '#111',
+    color: "#111",
   },
   photoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 32,
   },
   photoButton: {
-    position: 'relative',
+    position: "relative",
     marginBottom: 8,
   },
   photoWrapper: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
   },
   profileImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   cameraButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: '#166534',
+    backgroundColor: "#166534",
     padding: 8,
     borderRadius: 20,
   },
   photoText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   formSection: {
     gap: 20,
@@ -321,18 +368,18 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 8,
-    color: '#333',
+    color: "#333",
   },
   locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: "#d1d5db",
   },
   locationIcon: {
     marginRight: 8,
@@ -342,25 +389,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   filledText: {
-    color: '#111',
+    color: "#111",
   },
   placeholderText: {
-    color: '#9ca3af',
+    color: "#9ca3af",
   },
   saveButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
+    textAlign: "center",
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 24,
   },
   logoutText: {
     marginLeft: 8,
-    color: '#ef4444',
-    fontWeight: '500',
+    color: "#ef4444",
+    fontWeight: "500",
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+    backgroundColor: "#ef4444",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+  },
+  deleteText: {
+    marginLeft: 8,
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 15,
   },
 });

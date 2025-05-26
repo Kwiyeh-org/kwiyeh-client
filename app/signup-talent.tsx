@@ -1,6 +1,5 @@
  // app/signup-talent.tsx
 
- 
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -19,7 +18,8 @@ import {
   GoogleSigninButton,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
-
+import { auth } from "@/services/firebaseConfig";
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from "firebase/auth";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Checkbox as MobileCheckbox } from "~/components/ui/checkbox";
@@ -28,7 +28,7 @@ import CountrySelect, { Country } from "~/components/country-component/CountrySe
 import Entypo from "@expo/vector-icons/Entypo";
 import { Formik } from "formik";
 import * as Yup from "yup";
-import { registerUser, signInWithGoogle, signInWithGoogleMobile } from "@/services/firebase";
+import { registerUser } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -97,14 +97,11 @@ export default function SignupTalent() {
         email: values.email,
         phoneNumber: formattedPhone,
         password: values.password,
+        isTalent: true,
       });
 
       // Store talent name under "talentName"
       await AsyncStorage.setItem("talentName", values.fullName);
-
-      // Optionally, also store for profile header if needed
-      await AsyncStorage.setItem("userName", values.fullName);
-
       router.push("/talent/modals/talent-skillForm");
     } catch (error: any) {
       if (error.message === "Email already in use") {
@@ -129,39 +126,64 @@ export default function SignupTalent() {
   };
 
   // Google Sign-In handler for both web and mobile
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsSigningUp(true);
+const handleGoogleSignIn = async () => {
+  try {
+    setIsSigningUp(true);
 
-      if (Platform.OS !== "web") {
-        try {
-          await GoogleSignin.signOut();
-        } catch {}
+    // --- MOBILE (React Native) ---
+    if (Platform.OS !== "web") {
+      try {
+        await GoogleSignin.signOut();
+      } catch {}
+
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const { idToken } = await GoogleSignin.getTokens();
+      if (!idToken) throw new Error("No ID token present!");
+
+      // Firebase login
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCred = await signInWithCredential(auth, credential);
+
+      // Save display name as talentName ONLY if not present
+      const displayName = userCred.user.displayName || "";
+      const existingTalentName = await AsyncStorage.getItem("talentName");
+      if (!existingTalentName || existingTalentName.trim() === "") {
+        await AsyncStorage.setItem("talentName", displayName);
       }
+      await AsyncStorage.setItem("userId", userCred.user.uid);
 
-      if (Platform.OS !== "web" && !isGoogleSignInAvailable) {
-        throw new Error(
-          "Google Sign-In is not available on this device. Please sign up with email and password instead."
-        );
-      }
-
-      // Use the unified Google sign-in with the `talentName` param
-      if (Platform.OS !== "web") {
-        await signInWithGoogleMobile("/talent/modals/talent-skillForm", true);
-      } else {
-        await signInWithGoogle("/talent/modals/talent-skillForm", true);
-      }
-      // After successful sign-in, navigation will happen automatically
-
-    } catch (error: any) {
-      Alert.alert(
-        "Google Sign In Failed",
-        error.message || "Authentication failed"
-      );
-    } finally {
-      setIsSigningUp(false);
+      router.replace("/talent/modals/talent-skillForm");
+      return;
     }
-  };
+
+    // --- WEB ---
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    const result = await signInWithPopup(auth, provider);
+
+    const displayName = result.user.displayName || "";
+    const existingTalentName = await AsyncStorage.getItem("talentName");
+    if (!existingTalentName || existingTalentName.trim() === "") {
+      await AsyncStorage.setItem("talentName", displayName);
+    }
+    await AsyncStorage.setItem("userId", result.user.uid);
+
+    window.location.href = "/talent/modals/talent-skillForm";
+  } catch (error: any) {
+    if (Platform.OS !== "web" && error.code === statusCodes.SIGN_IN_CANCELLED) {
+      // user cancelled the login flow
+    } else if (Platform.OS !== "web" && error.code === statusCodes.IN_PROGRESS) {
+      // operation (e.g. sign in) is in progress already
+    } else if (Platform.OS !== "web" && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      Alert.alert("Google Play Services not available.");
+    } else {
+      Alert.alert("Google Sign In Failed", error.message || "Authentication failed");
+    }
+  } finally {
+    setIsSigningUp(false);
+  }
+};
 
   // Navigate to login page
   const handleLogin = () => {
@@ -468,6 +490,7 @@ export default function SignupTalent() {
               onPress={handleGoogleSignIn}
             />
           )}
+
           {/* Google Sign-In warning */}
           {Platform.OS !== "web" && !isGoogleSignInAvailable && (
             <Text style={styles.warningText}>
@@ -479,6 +502,7 @@ export default function SignupTalent() {
     </ImageBackground>
   );
 }
+
 // Define combined style type
 type Styles = {
   backgroundImage: ViewStyle;
