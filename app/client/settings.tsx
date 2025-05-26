@@ -1,6 +1,6 @@
 //app/client/settings.tsx
 
- import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,22 +11,23 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  StyleSheet
+  StyleSheet,
 } from "react-native";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FontAwesome, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { auth } from "@/services/firebaseConfig";
 import { deleteUser } from "firebase/auth";
+import LocationField from "~/components/LocationField";
 
 export default function ClientSettings() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -38,10 +39,9 @@ export default function ClientSettings() {
         const storedName = await AsyncStorage.getItem("userName");
         const storedImage = await AsyncStorage.getItem("userProfileImage");
         const storedLocation = await AsyncStorage.getItem("userLocation");
-
         if (storedName) setFullName(storedName);
         if (storedImage) setProfileImage(storedImage);
-        if (storedLocation) setLocation(storedLocation);
+        if (storedLocation) setLocation(JSON.parse(storedLocation));
       } catch (error) {
         console.error("Error loading user data:", error);
         Alert.alert("Error", "Failed to load your profile data");
@@ -49,28 +49,24 @@ export default function ClientSettings() {
         setIsLoading(false);
       }
     };
-
     loadUserData();
   }, []);
 
-  // Image picker function
   const pickImage = async () => {
     try {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== "web") {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
+        if (status !== "granted") {
+          Alert.alert("Permission Required", "Sorry, we need camera roll permissions to make this work!");
           return;
         }
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
         setProfileImage(uri);
@@ -82,12 +78,13 @@ export default function ClientSettings() {
     }
   };
 
-  // Save profile changes
   const saveProfile = async () => {
     try {
       setIsSaving(true);
       await AsyncStorage.setItem("userName", fullName);
-      await AsyncStorage.setItem("userLocation", location);
+      if (location) {
+        await AsyncStorage.setItem("userLocation", JSON.stringify(location));
+      }
       if (Platform.OS === "web") {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 2200);
@@ -102,7 +99,6 @@ export default function ClientSettings() {
     }
   };
 
-  // --- LOGOUT: remove only session keys ---
   const handleLogout = async () => {
     try {
       await AsyncStorage.multiRemove([
@@ -117,7 +113,6 @@ export default function ClientSettings() {
     }
   };
 
-  // --- ACCOUNT DELETION: delete Firebase user and ALL local data ---
   const handleAccountDeletion = async () => {
     Alert.alert(
       "Delete Account",
@@ -156,7 +151,6 @@ export default function ClientSettings() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Success message for web */}
       {Platform.OS === "web" && saveSuccess && (
         <View style={{ backgroundColor: "#d1fae5", padding: 12, borderRadius: 8, margin: 18 }}>
           <Text style={{ color: "#166534", fontWeight: "bold", textAlign: "center" }}>
@@ -167,7 +161,6 @@ export default function ClientSettings() {
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
           <Text style={styles.title}>Settings</Text>
-
           {/* Profile Photo */}
           <View style={styles.photoContainer}>
             <TouchableOpacity
@@ -191,7 +184,6 @@ export default function ClientSettings() {
             </TouchableOpacity>
             <Text style={styles.photoText}>Tap to change profile photo</Text>
           </View>
-
           {/* Profile Information */}
           <View style={styles.formSection}>
             {/* Name */}
@@ -212,19 +204,16 @@ export default function ClientSettings() {
                 }}
               />
             </View>
-
             {/* Location */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Location</Text>
-              <TouchableOpacity style={styles.locationButton}>
-                <Ionicons name="location-sharp" size={20} color="#666666" style={styles.locationIcon} />
-                <Text style={[styles.locationText, location ? styles.filledText : styles.placeholderText]}>
-                  {location || "Set your location"}
-                </Text>
-              </TouchableOpacity>
+              <LocationField
+                value={location?.address || ""}
+                onChange={locObj => setLocation(locObj)}
+                isTalent={false}
+              />
             </View>
           </View>
-
           {/* Save Button */}
           <Button
             style={{ backgroundColor: "#166534", borderRadius: 14, marginTop: 32, paddingVertical: 14 }}
@@ -235,7 +224,6 @@ export default function ClientSettings() {
               {isSaving ? "Saving..." : "Save Changes"}
             </Text>
           </Button>
-
           {/* Logout */}
           <TouchableOpacity
             style={styles.logoutButton}
@@ -244,7 +232,6 @@ export default function ClientSettings() {
             <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
-
           {/* Delete Account */}
           <TouchableOpacity
             style={styles.deleteButton}
@@ -337,28 +324,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 8,
     color: '#333',
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  locationIcon: {
-    marginRight: 8,
-  },
-  locationText: {
-    flex: 1,
-    fontSize: 16,
-  },
-  filledText: {
-    color: '#111',
-  },
-  placeholderText: {
-    color: '#9ca3af',
   },
   saveButtonText: {
     color: '#fff',

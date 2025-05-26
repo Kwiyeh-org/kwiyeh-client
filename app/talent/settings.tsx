@@ -1,7 +1,6 @@
 //app/talent/settings.tsx
 
-
- import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,12 +19,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
+import LocationField from "~/components/LocationField";
 
 export default function TalentSettings() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [location, setLocation] = useState("");
+  // CHANGE: use object for location!
+  const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
   const [services, setServices] = useState("");
   const [pricing, setPricing] = useState("");
   const [availability, setAvailability] = useState("");
@@ -54,7 +55,8 @@ export default function TalentSettings() {
         ]);
         if (storedName[1]) setFullName(storedName[1]);
         if (storedImage[1]) setProfileImage(storedImage[1]);
-        if (storedLocation[1]) setLocation(storedLocation[1]);
+        // CHANGE: parse object!
+        if (storedLocation[1]) setLocation(JSON.parse(storedLocation[1]));
         if (storedServices[1]) setServices(storedServices[1]);
         if (storedPricing[1]) setPricing(storedPricing[1]);
         if (storedAvailability[1]) setAvailability(storedAvailability[1]);
@@ -97,7 +99,8 @@ export default function TalentSettings() {
     try {
       await AsyncStorage.multiSet([
         ["talentName", fullName],
-        ["talentLocation", location],
+        // CHANGE: store location as stringified object!
+        ["talentLocation", location ? JSON.stringify(location) : ""],
         ["talentServices", services],
         ["talentPricing", pricing],
         ["talentAvailability", availability],
@@ -121,7 +124,6 @@ export default function TalentSettings() {
       await AsyncStorage.multiRemove([
         "idToken",
         "userId",
-        // DO NOT remove profile keys on logout!
       ]);
       router.replace("/login-talent");
     } catch (error) {
@@ -176,7 +178,6 @@ export default function TalentSettings() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Success message for web */}
       {Platform.OS === "web" && saveSuccess && (
         <View style={{ backgroundColor: "#d1fae5", padding: 12, borderRadius: 8, margin: 18 }}>
           <Text style={{ color: "#166534", fontWeight: "bold", textAlign: "center" }}>
@@ -222,12 +223,11 @@ export default function TalentSettings() {
             </View>
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Location</Text>
-              <TouchableOpacity style={styles.locationButton}>
-                <Ionicons name="location-sharp" size={20} color="#666666" style={styles.locationIcon} />
-                <Text style={[styles.locationText, location ? styles.filledText : styles.placeholderText]}>
-                  {location || "Set your location"}
-                </Text>
-              </TouchableOpacity>
+              <LocationField
+                value={location?.address || ""}
+                onChange={locObj => setLocation(locObj)}
+                isTalent={true}
+              />
             </View>
             {/* Services */}
             <View style={styles.inputContainer}>
@@ -371,28 +371,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 8,
     color: "#333",
-  },
-  locationButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-  },
-  locationIcon: {
-    marginRight: 8,
-  },
-  locationText: {
-    flex: 1,
-    fontSize: 16,
-  },
-  filledText: {
-    color: "#111",
-  },
-  placeholderText: {
-    color: "#9ca3af",
   },
   saveButtonText: {
     color: "#fff",
