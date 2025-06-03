@@ -1,10 +1,11 @@
-//components/LocationField.tsx
+ //components/LocationField.tsx
 
- import React, { useState } from 'react';
+  import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import LocationPickerModal from './location-picker-modal';
 import { locationService } from '~/services/location';
+import * as Location from "expo-location"; 
 
 type LocationValue = {
   latitude: number;
@@ -21,7 +22,18 @@ interface LocationFieldProps {
 export default function LocationField({ value, onChange, isTalent = false }: LocationFieldProps) {
   const [isPickerVisible, setIsPickerVisible] = useState(false);
 
-  const handleLocationSelect = async (location: { latitude: number; longitude: number; address: string }) => {
+  // UPDATED: Fetch address after picking location
+  const handleLocationSelect = async (loc: { latitude: number; longitude: number }) => {
+    let address = "";
+    try {
+      const [result] = await Location.reverseGeocodeAsync(loc);
+      address = result
+        ? `${result.name || ''} ${result.street || ''} ${result.city || ''} ${result.region || ''}`.trim()
+        : "";
+    } catch (e) {
+      address = "";
+    }
+    const location = { ...loc, address };
     onChange(location);
     await locationService.saveUserLocation(
       { ...location, timestamp: Date.now() },
@@ -43,12 +55,11 @@ export default function LocationField({ value, onChange, isTalent = false }: Loc
       <LocationPickerModal
         visible={isPickerVisible}
         onClose={() => setIsPickerVisible(false)}
-        onLocationSelect={handleLocationSelect}
+        onLocationSelected={handleLocationSelect}
       />
     </>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

@@ -2,46 +2,53 @@
 // //it's moved here to solve routing issues  that's how expo routing works
 
  import React, { useState } from "react";
-import { 
-  View, 
-  Text, 
-  SafeAreaView, 
-  ScrollView, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Platform,
-  Alert 
+  Alert,
+  TouchableOpacity
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SERVICES_CATEGORIES } from "~/constants/skill-list"; // <--- Use your constants file
 
 export default function TalentSkillForm() {
   const router = useRouter();
-  const [skills, setSkills] = useState("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [experience, setExperience] = useState("");
-  const [services, setServices] = useState("");
   const [pricing, setPricing] = useState("");
   const [availability, setAvailability] = useState("");
 
-   const handleSubmit = async () => {
-  try {
-    await AsyncStorage.multiSet([
-      ["talentSkills", skills],
-      ["talentExperience", experience],
-      ["talentServices", services],
-      ["talentPricing", pricing],
-      ["talentAvailability", availability],
-    ]);
-    router.replace("/talent"); 
-  } catch (error) {
-    Alert.alert("Error", "Failed to save profile data");
-  }
-};
+  // Multi-select toggle
+  const toggleService = (service: string) => {
+    setSelectedServices(prev =>
+      prev.includes(service) ? prev.filter(s => s !== service) : [...prev, service]
+    );
+  };
+
+  const handleSubmit = async () => {
+    try {
+      await AsyncStorage.multiSet([
+        ["talentServices", JSON.stringify(selectedServices)], // Store as JSON array
+        ["talentExperience", experience],
+        ["talentPricing", pricing],
+        ["talentAvailability", availability],
+      ]);
+      router.replace("/talent");
+    } catch (error) {
+      Alert.alert("Error", "Failed to save profile data");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -53,16 +60,35 @@ export default function TalentSkillForm() {
         </View>
 
         <View style={styles.form}>
+          {/* --- MULTI-SELECT SERVICE PICKER --- */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Skills</Text>
-            <Input
-              value={skills}
-              onChangeText={setSkills}
-              placeholder="e.g., Hair Styling, Makeup, Photography"
-              className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
-              multiline
-            />
+            <Text style={styles.label}>Services You Offer (pick all that apply)</Text>
+            {SERVICES_CATEGORIES.map(cat => (
+              <View key={cat.category} style={{ marginBottom: 8 }}>
+                <Text style={{ fontWeight: "bold", color: "#166534" }}>{cat.category}</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                  {cat.services.map(service => (
+                    <TouchableOpacity
+                      key={service}
+                      onPress={() => toggleService(service)}
+                      style={{
+                        backgroundColor: selectedServices.includes(service) ? "#166534" : "#e5e7eb",
+                        borderRadius: 16,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        margin: 3,
+                      }}
+                    >
+                      <Text style={{ color: selectedServices.includes(service) ? "#fff" : "#222" }}>
+                        {service}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
           </View>
+          {/* --- END SERVICES PICKER --- */}
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Experience</Text>
@@ -70,17 +96,6 @@ export default function TalentSkillForm() {
               value={experience}
               onChangeText={setExperience}
               placeholder="e.g., 5 years in professional makeup"
-              className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
-              multiline
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Services Offered</Text>
-            <Input
-              value={services}
-              onChangeText={setServices}
-              placeholder="e.g., Wedding Makeup, Portrait Photography"
               className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
               multiline
             />

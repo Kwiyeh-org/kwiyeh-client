@@ -1,6 +1,6 @@
 //app/talent/settings.tsx
 
-import React, { useState, useEffect } from "react";
+ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,24 +12,28 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
+  Switch,
 } from "react-native";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FontAwesome, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import LocationField from "~/components/LocationField";
+import { SERVICES_CATEGORIES } from "~/constants/skill-list"; 
+import MapView, { Marker } from "react-native-maps";
+
 
 export default function TalentSettings() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  // CHANGE: use object for location!
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
-  const [services, setServices] = useState("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]); // <--- NEW
   const [pricing, setPricing] = useState("");
   const [availability, setAvailability] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -45,6 +49,7 @@ export default function TalentSettings() {
           storedServices,
           storedPricing,
           storedAvailability,
+          storedIsMoving
         ] = await AsyncStorage.multiGet([
           "talentName",
           "talentProfileImage",
@@ -52,14 +57,21 @@ export default function TalentSettings() {
           "talentServices",
           "talentPricing",
           "talentAvailability",
+          "isMoving"
         ]);
         if (storedName[1]) setFullName(storedName[1]);
         if (storedImage[1]) setProfileImage(storedImage[1]);
-        // CHANGE: parse object!
         if (storedLocation[1]) setLocation(JSON.parse(storedLocation[1]));
-        if (storedServices[1]) setServices(storedServices[1]);
+        if (storedServices[1]) {
+          try {
+            setSelectedServices(JSON.parse(storedServices[1]));
+          } catch {
+            setSelectedServices([]);
+          }
+        }
         if (storedPricing[1]) setPricing(storedPricing[1]);
         if (storedAvailability[1]) setAvailability(storedAvailability[1]);
+        if (storedIsMoving[1]) setIsMobile(storedIsMoving[1] === "true");
       } catch (error) {
         Alert.alert("Error", "Failed to load profile data");
       } finally {
@@ -94,23 +106,25 @@ export default function TalentSettings() {
     }
   };
 
+  // Save isMoving + profile + services array
   const saveProfile = async () => {
     setIsSaving(true);
     try {
       await AsyncStorage.multiSet([
         ["talentName", fullName],
-        // CHANGE: store location as stringified object!
         ["talentLocation", location ? JSON.stringify(location) : ""],
-        ["talentServices", services],
+        ["talentServices", JSON.stringify(selectedServices)], // <--- ARRAY
         ["talentPricing", pricing],
         ["talentAvailability", availability],
+        ["isMoving", isMobile ? "true" : "false"]
       ]);
       if (Platform.OS === "web") {
         setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 2200); // Show message for 2.2 seconds
+        setTimeout(() => setSaveSuccess(false), 2200);
       } else {
         Alert.alert("Success", "Profile updated successfully!");
       }
+      // Optionally update 'talents' array in AsyncStorage with isMoving (see previous answer!)
     } catch (error) {
       Alert.alert("Error", "Failed to save profile changes");
     } finally {
@@ -118,7 +132,6 @@ export default function TalentSettings() {
     }
   };
 
-  // Logout: Remove ONLY session keys (leave profile keys!)
   const handleLogout = async () => {
     try {
       await AsyncStorage.multiRemove([
@@ -131,7 +144,6 @@ export default function TalentSettings() {
     }
   };
 
-  // Account deletion: Remove all talent keys
   const handleAccountDeletion = async () => {
     Alert.alert(
       "Delete Account",
@@ -152,10 +164,10 @@ export default function TalentSettings() {
                 "talentServices",
                 "talentPricing",
                 "talentAvailability",
+                "isMoving",
                 "talentSkills",
                 "talentExperience",
                 "talentPortfolio",
-                // Add any other talent-only keys you use
               ]);
               router.replace("/signup-talent");
             } catch (error) {
@@ -221,26 +233,79 @@ export default function TalentSettings() {
                 className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
               />
             </View>
+             <View style={styles.inputContainer}>
+  <Text style={styles.label}>Location</Text>
+  <LocationField
+    value={location?.address || ""}
+    onChange={locObj => setLocation(locObj)}
+    isTalent={true}
+  />
+  {/* === Map Preview for Talent === */}
+  {location && (
+    <View style={{ height: 180, borderRadius: 14, overflow: "hidden", marginTop: 10 }}>
+      <MapView
+        style={{ flex: 1 }}
+        initialRegion={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        pointerEvents="none" // Map is just a preview, not interactive
+      >
+        <Marker
+          coordinate={{
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }}
+          pinColor={isMobile ? "#FFA500" : "#166534"}
+          title="Your Location"
+          description={isMobile ? "Mobile (tracking enabled)" : "Static (fixed)"}
+        />
+      </MapView>
+    </View>
+  )}
+  <Text style={{ color: "#888", fontSize: 13, marginTop: 6 }}>
+    {isMobile
+      ? "You are set as a mobile talent. Your location will update as you move."
+      : "You are set as a static talent. Clients will see this location."}
+  </Text>
+</View>
+
+            {/* Services: MULTI-SELECT */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Location</Text>
-              <LocationField
-                value={location?.address || ""}
-                onChange={locObj => setLocation(locObj)}
-                isTalent={true}
-              />
+              <Text style={styles.label}>Services You Offer</Text>
+              {SERVICES_CATEGORIES.map(cat => (
+                <View key={cat.category} style={{ marginBottom: 8 }}>
+                  <Text style={{ fontWeight: "bold", color: "#166534" }}>{cat.category}</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                    {cat.services.map(service => (
+                      <TouchableOpacity
+                        key={service}
+                        onPress={() =>
+                          setSelectedServices(prev =>
+                            prev.includes(service)
+                              ? prev.filter(s => s !== service)
+                              : [...prev, service]
+                          )
+                        }
+                        style={{
+                          backgroundColor: selectedServices.includes(service) ? "#166534" : "#e5e7eb",
+                          borderRadius: 16,
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          margin: 3,
+                        }}
+                      >
+                        <Text style={{ color: selectedServices.includes(service) ? "#fff" : "#222" }}>
+                          {service}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
             </View>
-            {/* Services */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Services Offered</Text>
-              <Input
-                value={services}
-                onChangeText={setServices}
-                placeholder="e.g., Hair Styling, Makeup, Photography"
-                className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
-                multiline
-              />
-            </View>
-            {/* Pricing */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Pricing</Text>
               <Input
@@ -250,7 +315,6 @@ export default function TalentSettings() {
                 className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
               />
             </View>
-            {/* Availability */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Availability</Text>
               <Input
@@ -260,6 +324,20 @@ export default function TalentSettings() {
                 className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
               />
             </View>
+          </View>
+          {/* --- MOBILE TALENT TOGGLE (just before Save) --- */}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+            <Text style={{ flex: 1 }}>Mobile Talent (Track Me)</Text>
+            <Switch
+              value={isMobile}
+              onValueChange={async (value) => {
+                setIsMobile(value);
+                await AsyncStorage.setItem("isMoving", value ? "true" : "false");
+                // Optional: if you implement tracking service, start/stop here
+                // if (value) await talentTrackingService.startTracking(talentId);
+                // else await talentTrackingService.stopTracking();
+              }}
+            />
           </View>
           {/* Save Button */}
           <Button
