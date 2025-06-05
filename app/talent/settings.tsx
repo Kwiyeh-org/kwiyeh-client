@@ -22,7 +22,8 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import LocationField from "~/components/LocationField";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list"; 
-import MapView, { Marker } from "react-native-maps";
+// import MapView, { Marker } from "react-native-maps";
+import CustomMapView, { Marker } from "~/components/CustomMapView";
 
 
 export default function TalentSettings() {
@@ -243,7 +244,7 @@ export default function TalentSettings() {
   {/* === Map Preview for Talent === */}
   {location && (
     <View style={{ height: 180, borderRadius: 14, overflow: "hidden", marginTop: 10 }}>
-      <MapView
+      <CustomMapView
         style={{ flex: 1 }}
         initialRegion={{
           latitude: location.latitude,
@@ -262,7 +263,7 @@ export default function TalentSettings() {
           title="Your Location"
           description={isMobile ? "Mobile (tracking enabled)" : "Static (fixed)"}
         />
-      </MapView>
+      </CustomMapView>
     </View>
   )}
   <Text style={{ color: "#888", fontSize: 13, marginTop: 6 }}>

@@ -26,7 +26,10 @@
       },
       "associatedDomains": [
         "applinks:kwiyeh.com"
-      ]
+      ],
+      "config": {
+        "googleMapsApiKey": "AIzaSyDeZNZtuUNXvfa99LAKVlyn08QpJpa3Nbc"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -52,12 +55,22 @@
             "DEFAULT"
           ]
         }
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDeZNZtuUNXvfa99LAKVlyn08QpJpa3Nbc"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDeZNZtuUNXvfa99LAKVlyn08QpJpa3Nbc"
+        }
+      }
     },
     "plugins": [
       "expo-router",

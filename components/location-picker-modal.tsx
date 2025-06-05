@@ -1,9 +1,8 @@
  // components/location-picker-modal.tsx
 
-
- import React, { useState } from "react";
+import React, { useState } from "react";
 import { View, Modal, Button } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import CustomMapView, { Marker } from "~/components/CustomMapView";
 
 export default function LocationPicker({
   visible,
@@ -23,7 +22,7 @@ export default function LocationPicker({
   return (
     <Modal visible={visible} animationType="slide">
       <View style={{ flex: 1 }}>
-        <MapView
+        <CustomMapView
           style={{ flex: 1 }}
           initialRegion={{
             latitude: selected.latitude,
@@ -31,14 +30,14 @@ export default function LocationPicker({
             latitudeDelta: 0.09,
             longitudeDelta: 0.09,
           }}
-          onPress={e => setSelected(e.nativeEvent.coordinate)}
+          onPress={(e: any) => setSelected(e.nativeEvent.coordinate)}
         >
           <Marker
             coordinate={selected}
             draggable
-            onDragEnd={e => setSelected(e.nativeEvent.coordinate)}
+            onDragEnd={(e: any) => setSelected(e.nativeEvent.coordinate)}
           />
-        </MapView>
+        </CustomMapView>
         <View style={{ flexDirection: "row", justifyContent: "space-around", padding: 16 }}>
           <Button title="Cancel" onPress={onClose} color="#aaa" />
           <Button title="Select" onPress={() => {
@@ -50,3 +49,5 @@ export default function LocationPicker({
     </Modal>
   );
 }
+
+  

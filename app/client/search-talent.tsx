@@ -4,12 +4,13 @@
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity, Platform, StyleSheet, Dimensions, Image
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+// import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import { Button } from "~/components/ui/button";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list";
 import { locationService, type LocationData } from '~/services/location';
+import CustomMapView, { Marker } from "~/components/CustomMapView";
 
 
 export default function SearchTalent() {
@@ -84,8 +85,7 @@ export default function SearchTalent() {
 
   // Map View
   const renderMap = () => (
-    <MapView
-      provider={PROVIDER_GOOGLE}
+    <CustomMapView
       style={{ width: Dimensions.get('window').width, height: Dimensions.get('window').height - 120 }}
       initialRegion={{
         latitude: 4.0511,
@@ -118,7 +118,7 @@ export default function SearchTalent() {
           description="Your current location"
         />
       )}
-    </MapView>
+    </CustomMapView>
   );
 
   return (
