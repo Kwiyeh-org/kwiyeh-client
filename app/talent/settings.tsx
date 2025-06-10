@@ -22,7 +22,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import LocationField from "~/components/LocationField";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list"; 
-// import MapView, { Marker } from "react-native-maps";
 import CustomMapView, { Marker } from "~/components/CustomMapView";
 
 

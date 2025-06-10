@@ -8,9 +8,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:526766693911:android:5219bca7cf72b5854ec652",
+        "mobilesdk_app_id": "1:526766693911:android:20501e1a8e557fca4ec652",
         "android_client_info": {
-          "package_name": "kwiyeh.android"
+          "package_name": "com.kwiyeh.kwiyeh"
         }
       },
       "oauth_client": [
@@ -30,6 +30,13 @@
             {
               "client_id": "526766693911-33hjbi26mjndnijda5fgg5iaehm07g54.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "526766693911-a33fu99jbou2m5eerpvr6plte5agk6i0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kwiyeh.kwiyeh"
+              }
             }
           ]
         }

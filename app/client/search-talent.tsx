@@ -4,13 +4,13 @@
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity, Platform, StyleSheet, Dimensions, Image
 } from "react-native";
-// import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import { Button } from "~/components/ui/button";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list";
 import { locationService, type LocationData } from '~/services/location';
-import CustomMapView, { Marker } from "~/components/CustomMapView";
+import CustomMapView, { Marker } from "../../components/CustomMapView";
 
 
 export default function SearchTalent() {

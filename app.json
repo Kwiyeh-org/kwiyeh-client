@@ -65,12 +65,8 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyDeZNZtuUNXvfa99LAKVlyn08QpJpa3Nbc"
-        }
-      }
+      "favicon": "./assets/images/favicon.png"
+       
     },
     "plugins": [
       "expo-router",

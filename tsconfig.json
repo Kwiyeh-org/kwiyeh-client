@@ -1,4 +1,4 @@
-{
+ {
   "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
@@ -6,7 +6,9 @@
     "paths": {
       "~/*": ["*"],
       "@/*": ["*"]
-    }
+    },
+    "module": "es2020",
+    "target": "es2020"
   },
   "include": [
     "**/*.ts",
