@@ -1,5 +1,5 @@
 //services/location.ts
-import * as Location from 'expo-location';
+ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface LocationData {
@@ -10,7 +10,7 @@ export interface LocationData {
 }
 
 class LocationService {
-  // Default to Douala, Cameroon
+  // Default to Douala, Cameroon (fallback)
   private defaultLocation: LocationData = {
     latitude: 4.0511,
     longitude: 9.7679,
@@ -28,6 +28,7 @@ class LocationService {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) throw new Error('Location permission not granted');
 
+      // Works on web and mobile (browser will prompt user)
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High
       });
@@ -44,7 +45,7 @@ class LocationService {
         timestamp: Date.now()
       };
     } catch (error) {
-      console.error('Error getting location:', error);
+      // Only fallback to Douala if not allowed or failed
       return this.defaultLocation;
     }
   }
@@ -58,7 +59,6 @@ class LocationService {
       }
       return 'Unknown location';
     } catch (error) {
-      console.error('Error getting address:', error);
       return 'Unknown location';
     }
   }
@@ -74,7 +74,6 @@ class LocationService {
       const stored = await AsyncStorage.getItem(key);
       return stored ? JSON.parse(stored) : null;
     } catch (error) {
-      console.error('Error getting stored location:', error);
       return null;
     }
   }

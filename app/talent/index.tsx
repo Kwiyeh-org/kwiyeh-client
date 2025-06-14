@@ -1,4 +1,4 @@
-// app/talent/index.tsx(talent-dashboard.tsx)
+ // app/talent/index.tsx(talent-dashboard.tsx)
 
 import React, { useState } from "react";
 import {
@@ -8,13 +8,14 @@ import {
   Image,
   StyleSheet,
   Platform,
-  SafeAreaView,
+  // SafeAreaView,
   useWindowDimensions,
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Feather } from "@expo/vector-icons";
+import SafeAreaView from "react-native-safe-area-context"
 import { auth } from "@/services/firebaseConfig";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -38,21 +39,22 @@ export default function TalentDashboard() {
   useFocusEffect(
     React.useCallback(() => {
       const loadUserData = async () => {
-        let storedName = await AsyncStorage.getItem("talentName");
-        const storedImage = await AsyncStorage.getItem("talentProfileImage");
-
-        // If no talentName yet, fallback to Google displayName (only ONCE)
-        if (!storedName || storedName.trim() === "") {
-          if (auth.currentUser) {
-            const googleName = auth.currentUser.displayName || "";
-            if (googleName) {
-              await AsyncStorage.setItem("talentName", googleName);
-              storedName = googleName;
+        if (Platform.OS === "web" && auth.currentUser) {
+          setUserName(auth.currentUser.displayName || "Talent");
+          setProfileImage(auth.currentUser.photoURL);
+        } else {
+          let storedName = await AsyncStorage.getItem("talentName");
+          const storedImage = await AsyncStorage.getItem("talentProfileImage");
+          if ((!storedName || !storedName.trim()) && auth.currentUser) {
+            const fallback = auth.currentUser.displayName || "";
+            if (fallback) {
+              storedName = fallback;
+              await AsyncStorage.setItem("talentName", fallback);
             }
           }
+          setUserName(storedName || "");
+          setProfileImage(storedImage || null);
         }
-        setUserName(storedName || "");
-        setProfileImage(storedImage || null);
 
         // Profile completion logic
         const [
@@ -336,5 +338,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
- 

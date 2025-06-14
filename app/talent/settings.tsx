@@ -1,6 +1,8 @@
-//app/talent/settings.tsx
+ //app/talent/settings.tsx
 
- import React, { useState, useEffect } from "react";
+   //app/talent/settings.tsx
+
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,14 +25,17 @@ import { useRouter } from "expo-router";
 import LocationField from "~/components/LocationField";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list"; 
 import CustomMapView, { Marker } from "~/components/CustomMapView";
-
+import { auth } from "@/services/firebaseConfig";
+import { updateProfile, deleteUser } from "firebase/auth";
+import { getDatabase, ref, set, remove } from 'firebase/database';
+import { app } from '~/services/firebaseConfig';
 
 export default function TalentSettings() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
-  const [selectedServices, setSelectedServices] = useState<string[]>([]); // <--- NEW
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [pricing, setPricing] = useState("");
   const [availability, setAvailability] = useState("");
   const [isMobile, setIsMobile] = useState(false);
@@ -42,25 +47,46 @@ export default function TalentSettings() {
     const loadUserData = async () => {
       setIsLoading(true);
       try {
+        if (Platform.OS === "web" && auth.currentUser) {
+          setFullName(auth.currentUser.displayName || "");
+          setProfileImage(auth.currentUser.photoURL);
+        } else {
+          const [
+            storedName,
+            storedImage,
+            storedLocation,
+            storedServices,
+            storedPricing,
+            storedAvailability,
+            storedIsMoving
+          ] = await AsyncStorage.multiGet([
+            "talentName",
+            "talentProfileImage",
+            "talentLocation",
+            "talentServices",
+            "talentPricing",
+            "talentAvailability",
+            "isMoving"
+          ]);
+          if (storedName[1]) setFullName(storedName[1]);
+          if (storedImage[1]) setProfileImage(storedImage[1]);
+        }
+        
+        // Load other data regardless of platform
         const [
-          storedName,
-          storedImage,
           storedLocation,
           storedServices,
           storedPricing,
           storedAvailability,
           storedIsMoving
         ] = await AsyncStorage.multiGet([
-          "talentName",
-          "talentProfileImage",
           "talentLocation",
           "talentServices",
           "talentPricing",
           "talentAvailability",
           "isMoving"
         ]);
-        if (storedName[1]) setFullName(storedName[1]);
-        if (storedImage[1]) setProfileImage(storedImage[1]);
+        
         if (storedLocation[1]) setLocation(JSON.parse(storedLocation[1]));
         if (storedServices[1]) {
           try {
@@ -106,26 +132,63 @@ export default function TalentSettings() {
     }
   };
 
-  // Save isMoving + profile + services array
+  // Save to Firebase + AsyncStorage
   const saveProfile = async () => {
     setIsSaving(true);
     try {
+      // Save to AsyncStorage first
       await AsyncStorage.multiSet([
         ["talentName", fullName],
+        ["talentProfileImage", profileImage ?? ""],
         ["talentLocation", location ? JSON.stringify(location) : ""],
-        ["talentServices", JSON.stringify(selectedServices)], // <--- ARRAY
+        ["talentServices", JSON.stringify(selectedServices)],
         ["talentPricing", pricing],
         ["talentAvailability", availability],
         ["isMoving", isMobile ? "true" : "false"]
       ]);
-      if (Platform.OS === "web") {
+
+      // --- SAVE TO FIREBASE ---
+      const userId = await AsyncStorage.getItem('userId');
+      if (userId) {
+        const db = getDatabase(app);
+        
+        // Save full profile (used for user details)
+        await set(ref(db, `talents/${userId}`), {
+          name: fullName,
+          profileImage,
+          location,
+          services: selectedServices,
+          pricing,
+          availability,
+          isMoving: isMobile,
+        });
+
+        // Save map location (used for live search/map)
+        if (location) {
+          await set(ref(db, `talentLocations/${userId}`), {
+            ...location,
+            isMoving: isMobile,
+            name: fullName,
+            profileImage,
+            services: selectedServices,
+          });
+        }
+      }
+
+      // Handle Firebase Auth profile update for web
+      if (Platform.OS === "web" && auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: fullName,
+          photoURL: profileImage ?? undefined,
+        });
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 2200);
       } else {
         Alert.alert("Success", "Profile updated successfully!");
       }
-      // Optionally update 'talents' array in AsyncStorage with isMoving (see previous answer!)
+      
     } catch (error) {
+      console.error("Save profile error:", error);
       Alert.alert("Error", "Failed to save profile changes");
     } finally {
       setIsSaving(false);
@@ -138,6 +201,9 @@ export default function TalentSettings() {
         "idToken",
         "userId",
       ]);
+      if (Platform.OS === "web" && auth?.signOut) {
+        await auth.signOut();
+      }
       router.replace("/login-talent");
     } catch (error) {
       Alert.alert("Error", "Failed to log out");
@@ -147,7 +213,7 @@ export default function TalentSettings() {
   const handleAccountDeletion = async () => {
     Alert.alert(
       "Delete Account",
-      "Are you sure you want to delete your account? This action is permanent.",
+      "Are you sure you want to delete your account? This action is permanent and cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -155,11 +221,41 @@ export default function TalentSettings() {
           style: "destructive",
           onPress: async () => {
             try {
+              // Get userId before clearing storage
+              const userId = await AsyncStorage.getItem('userId');
+              
+              // 1. Delete from Firebase Realtime Database
+              if (userId) {
+                const db = getDatabase(app);
+                try {
+                  // Remove talent profile data
+                  await remove(ref(db, `talents/${userId}`));
+                  // Remove talent location data
+                  await remove(ref(db, `talentLocations/${userId}`));
+                  console.log("Firebase data deleted successfully");
+                } catch (dbError) {
+                  console.error("Firebase deletion error:", dbError);
+                  // Continue with other deletions even if Firebase fails
+                }
+              }
+
+              // 2. Delete Firebase Auth user (if authenticated)
+              if (auth.currentUser) {
+                try {
+                  await deleteUser(auth.currentUser);
+                  console.log("Firebase Auth user deleted successfully");
+                } catch (authError) {
+                  console.error("Firebase Auth deletion error:", authError);
+                  // Continue with local cleanup even if auth deletion fails
+                }
+              }
+
+              // 3. Clear all local storage
               await AsyncStorage.multiRemove([
                 "idToken",
                 "userId",
                 "talentName",
-                "talentProfileImage",
+                "talentProfileImage", 
                 "talentLocation",
                 "talentServices",
                 "talentPricing",
@@ -168,10 +264,26 @@ export default function TalentSettings() {
                 "talentSkills",
                 "talentExperience",
                 "talentPortfolio",
+                // Add any other talent-specific keys you might have
+                "userLocation", // In case it was stored
+                "userName", // In case it was stored
+                "userProfileImage", // In case it was stored
               ]);
+
+              // 4. Navigate to signup page
               router.replace("/signup-talent");
+              
+              // Show success message
+              if (Platform.OS !== "web") {
+                Alert.alert("Account Deleted", "Your account has been successfully deleted.");
+              }
+              
             } catch (error) {
-              Alert.alert("Error", "Failed to delete account. Try again.");
+              console.error("Account deletion error:", error);
+              Alert.alert(
+                "Deletion Error", 
+                "There was an error deleting your account. Some data may still exist. Please try again or contact support."
+              );
             }
           },
         },
@@ -234,43 +346,43 @@ export default function TalentSettings() {
               />
             </View>
              <View style={styles.inputContainer}>
-  <Text style={styles.label}>Location</Text>
-  <LocationField
-    value={location?.address || ""}
-    onChange={locObj => setLocation(locObj)}
-    isTalent={true}
-  />
-  {/* === Map Preview for Talent === */}
-  {location && (
-    <View style={{ height: 180, borderRadius: 14, overflow: "hidden", marginTop: 10 }}>
-      <CustomMapView
-        style={{ flex: 1 }}
-        initialRegion={{
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        pointerEvents="none" // Map is just a preview, not interactive
-      >
-        <Marker
-          coordinate={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-          }}
-          pinColor={isMobile ? "#FFA500" : "#166534"}
-          title="Your Location"
-          description={isMobile ? "Mobile (tracking enabled)" : "Static (fixed)"}
-        />
-      </CustomMapView>
-    </View>
-  )}
-  <Text style={{ color: "#888", fontSize: 13, marginTop: 6 }}>
-    {isMobile
-      ? "You are set as a mobile talent. Your location will update as you move."
-      : "You are set as a static talent. Clients will see this location."}
-  </Text>
-</View>
+              <Text style={styles.label}>Location</Text>
+              <LocationField
+                value={location?.address || ""}
+                onChange={locObj => setLocation(locObj)}
+                isTalent={true}
+              />
+              {/* === Map Preview for Talent === */}
+              {location && (
+                <View style={{ height: 180, borderRadius: 14, overflow: "hidden", marginTop: 10 }}>
+                  <CustomMapView
+                    style={{ flex: 1 }}
+                    initialRegion={{
+                      latitude: location.latitude,
+                      longitude: location.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    pointerEvents="none" // Map is just a preview, not interactive
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                      }}
+                      pinColor={isMobile ? "#FFA500" : "#166534"}
+                      title="Your Location"
+                      description={isMobile ? "Mobile (tracking enabled)" : "Static (fixed)"}
+                    />
+                  </CustomMapView>
+                </View>
+              )}
+              <Text style={{ color: "#888", fontSize: 13, marginTop: 6 }}>
+                {isMobile
+                  ? "You are set as a mobile talent. Your location will update as you move."
+                  : "You are set as a static talent. Clients will see this location."}
+              </Text>
+            </View>
 
             {/* Services: MULTI-SELECT */}
             <View style={styles.inputContainer}>

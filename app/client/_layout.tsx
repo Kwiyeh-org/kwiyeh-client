@@ -5,7 +5,6 @@ import { View } from "react-native";
 
 export default function ClientStackLayout() {
   return (
-    <View style={{ flex: 1 }}>
       <Stack 
         screenOptions={{ 
           headerShown: false,
@@ -16,6 +15,5 @@ export default function ClientStackLayout() {
           animation: 'slide_from_right',
         }} 
       />
-    </View>
   );
 }

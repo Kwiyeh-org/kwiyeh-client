@@ -19,9 +19,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { auth } from "@/services/firebaseConfig";
 import { deleteUser } from "firebase/auth";
 import LocationField from "~/components/LocationField";
+import { auth } from "@/services/firebaseConfig";
+import { updateProfile } from "firebase/auth";
+import { getDatabase, ref, set, remove } from 'firebase/database';
+import { app } from '~/services/firebaseConfig';
 
 export default function ClientSettings() {
   const router = useRouter();
@@ -36,12 +39,19 @@ export default function ClientSettings() {
     const loadUserData = async () => {
       try {
         setIsLoading(true);
-        const storedName = await AsyncStorage.getItem("userName");
-        const storedImage = await AsyncStorage.getItem("userProfileImage");
         const storedLocation = await AsyncStorage.getItem("userLocation");
-        if (storedName) setFullName(storedName);
-        if (storedImage) setProfileImage(storedImage);
-        if (storedLocation) setLocation(JSON.parse(storedLocation));
+        
+        if (Platform.OS === "web" && auth.currentUser) {
+          setFullName(auth.currentUser.displayName || "");
+          setProfileImage(auth.currentUser.photoURL);
+          if (storedLocation) setLocation(JSON.parse(storedLocation));
+        } else {
+          const storedName = await AsyncStorage.getItem("userName");
+          const storedImage = await AsyncStorage.getItem("userProfileImage");
+          if (storedName) setFullName(storedName);
+          if (storedImage) setProfileImage(storedImage);
+          if (storedLocation) setLocation(JSON.parse(storedLocation));
+        }
       } catch (error) {
         console.error("Error loading user data:", error);
         Alert.alert("Error", "Failed to load your profile data");
@@ -81,11 +91,32 @@ export default function ClientSettings() {
   const saveProfile = async () => {
     try {
       setIsSaving(true);
-      await AsyncStorage.setItem("userName", fullName);
-      if (location) {
-        await AsyncStorage.setItem("userLocation", JSON.stringify(location));
+      
+      // Save to AsyncStorage first
+      await AsyncStorage.multiSet([
+        ["userName", fullName],
+        ["userProfileImage", profileImage ?? ""],
+        ["userLocation", location ? JSON.stringify(location) : ""],
+      ]);
+
+      // --- SAVE TO FIREBASE ---
+      const userId = await AsyncStorage.getItem('userId');
+      if (userId) {
+        const db = getDatabase(app);
+        
+        // Save client profile data
+        await set(ref(db, `clients/${userId}`), {
+          name: fullName,
+          profileImage,
+          location,
+        });
       }
-      if (Platform.OS === "web") {
+      
+      if (Platform.OS === "web" && auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: fullName,
+          photoURL: profileImage ?? undefined,
+        });
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 2200);
       } else {
@@ -105,7 +136,9 @@ export default function ClientSettings() {
         "idToken",
         "userId"
       ]);
-      if (auth && auth.signOut) await auth.signOut?.();
+      if (Platform.OS === "web" && auth?.signOut) {
+        await auth.signOut();
+      }
       router.replace("/login-client");
     } catch (error) {
       console.error("Error during logout:", error);
@@ -116,7 +149,7 @@ export default function ClientSettings() {
   const handleAccountDeletion = async () => {
     Alert.alert(
       "Delete Account",
-      "Are you sure you want to delete your account? This action is permanent.",
+      "Are you sure you want to delete your account? This action is permanent and cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -124,15 +157,90 @@ export default function ClientSettings() {
           style: "destructive",
           onPress: async () => {
             try {
-              const currentUser = auth.currentUser;
-              if (currentUser) {
-                await deleteUser(currentUser);
+              // Get userId before clearing storage
+              const userId = await AsyncStorage.getItem('userId');
+              
+              // 1. Delete from Firebase Realtime Database
+              if (userId) {
+                const db = getDatabase(app);
+                try {
+                  // Remove client profile data
+                  await remove(ref(db, `clients/${userId}`));
+                  // Remove any client-specific data (bookings, reviews, etc.)
+                  await remove(ref(db, `clientBookings/${userId}`));
+                  await remove(ref(db, `clientReviews/${userId}`));
+                  await remove(ref(db, `clientChats/${userId}`));
+                  console.log("Firebase client data deleted successfully");
+                } catch (dbError) {
+                  console.error("Firebase deletion error:", dbError);
+                  // Continue with other deletions even if Firebase fails
+                }
               }
-              await AsyncStorage.clear();
+
+              // 2. Delete Firebase Auth user (if authenticated)
+              if (auth.currentUser) {
+                try {
+                  await deleteUser(auth.currentUser);
+                  console.log("Firebase Auth user deleted successfully");
+                } catch (authError) {
+                  console.error("Firebase Auth deletion error:", authError);
+                  // Continue with local cleanup even if auth deletion fails
+                }
+              }
+
+              // 3. Clear all local storage - comprehensive cleanup
+              await AsyncStorage.multiRemove([
+                // Auth tokens
+                "idToken",
+                "userId",
+                
+                // Client profile data
+                "userName",
+                "userProfileImage", 
+                "userLocation",
+                
+                // Client-specific data
+                "clientPreferences",
+                "clientBookings",
+                "clientFavorites",
+                "clientSearchHistory",
+                "clientPaymentMethods",
+                "clientReviews",
+                "clientNotifications",
+                
+                // General app data that might be client-specific
+                "lastSearchLocation",
+                "recentSearches",
+                "appSettings",
+                "chatHistory",
+                
+                // Talent data (in case user switched roles)
+                "talentName",
+                "talentProfileImage",
+                "talentLocation",
+                "talentServices",
+                "talentPricing",
+                "talentAvailability",
+                "isMoving",
+                "talentSkills",
+                "talentExperience",
+                "talentPortfolio",
+              ]);
+
+              // 4. Navigate to signup page
               router.replace("/signup-client");
+              
+              // Show success message
+              if (Platform.OS !== "web") {
+                Alert.alert("Account Deleted", "Your account has been successfully deleted.");
+              }
+              
             } catch (error) {
-              console.error("Error deleting account:", error);
-              Alert.alert("Error", "Failed to delete account. Try again.");
+              console.error("Account deletion error:", error);
+              Alert.alert(
+                "Deletion Error", 
+                "There was an error deleting your account. Some data may still exist. Please try again or contact support."
+              );
             }
           }
         }
@@ -358,4 +466,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
   },
-});
+}); 
+ 

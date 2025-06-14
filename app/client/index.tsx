@@ -1,4 +1,4 @@
-//app/client/index.tsx(client-dashboard.tsx)
+ //app/client/index.tsx(client-dashboard.tsx)
 
   import React, { useState } from "react";
 import {
@@ -8,7 +8,7 @@ import {
   Image,
   StyleSheet,
   Platform,
-  SafeAreaView,
+  // SafeAreaView,
   useWindowDimensions,
   ScrollView
 } from "react-native";
@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { auth } from "@/services/firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import SafeAreaView from "react-native-safe-area-context"
 import Bookings from "./bookings";
 import SearchTalent from "./search-talent";
 import Messages from "./messages";
@@ -42,19 +43,19 @@ export default function ClientDashboard() {
   useFocusEffect(
     React.useCallback(() => {
       const loadUserData = async () => {
-        let storedName = await AsyncStorage.getItem("userName");
-        const storedImage = await AsyncStorage.getItem("userProfileImage");
-
-        // If no userName yet, try to get from Firebase auth (e.g., Google user)
-        if (!storedName && auth.currentUser) {
-          storedName = auth.currentUser.displayName || "";
-          if (storedName) {
-            await AsyncStorage.setItem("userName", storedName);
+        if (Platform.OS === "web" && auth.currentUser) {
+          setUserName(auth.currentUser.displayName || "User");
+          setProfileImage(auth.currentUser.photoURL);
+        } else {
+          let storedName = await AsyncStorage.getItem("userName");
+          const storedImage = await AsyncStorage.getItem("userProfileImage");
+          if (!storedName && auth.currentUser) {
+            storedName = auth.currentUser.displayName || "";
+            if (storedName) await AsyncStorage.setItem("userName", storedName);
           }
+          setUserName(storedName || "");
+          setProfileImage(storedImage || null);
         }
-
-        setUserName(storedName || "");
-        setProfileImage(storedImage || null);
       };
       loadUserData();
     }, [])

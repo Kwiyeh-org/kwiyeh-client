@@ -1,6 +1,6 @@
  // app/signup-talent.tsx
 
-import React, { useState, useEffect } from "react";
+  import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -98,7 +98,7 @@ export default function SignupTalent() {
         phoneNumber: formattedPhone,
         password: values.password,
         isTalent: true,
-      });
+      }as any);
 
       // Store talent name under "talentName"
       await AsyncStorage.setItem("talentName", values.fullName);

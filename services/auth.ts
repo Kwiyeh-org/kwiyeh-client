@@ -4,7 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '~/supabase/supabase';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import {
   GoogleSignin,
   GoogleSigninButton,
@@ -64,14 +64,13 @@ export async function signInWithGoogleMobile() {
     await AsyncStorage.setItem('userId', userId);
 
     // 7) Handle navigation internally
-    const isClient = session.user.app_metadata?.role === 'client';
-    const redirectPath = isClient ? '/client' : '/talent/talent-skillForm';
-    
-    // Use navigation method available in the current context
-    // Note: When using this in a component, you'd import useRouter directly in the component
-    const router = useRouter();
-    router.push(redirectPath);
-    
+   const isClient = session.user.app_metadata?.role === 'client';
+   // corrected talent path to match your modal route
+  const redirectPath = isClient
+       ? '/client'
+  : '/talent/modals/talent-skillForm';
+   // Use the router singleton for navigation from a non-component module
+  router.push(redirectPath);
     return {
       success: true,
       userId,
