@@ -4,13 +4,15 @@
 import { 
   View, 
   Text, 
-  SafeAreaView, 
+  // SafeAreaView, 
   ScrollView, 
   TouchableOpacity, 
   Platform,
   StyleSheet 
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { Button } from "~/components/ui/button";
 
 export default function TalentBookings() {

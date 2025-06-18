@@ -8,21 +8,17 @@ import {
   Image,
   StyleSheet,
   Platform,
-  // SafeAreaView,
   useWindowDimensions,
-  ScrollView
+  ScrollView,
+  // SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
-import { auth } from "@/services/firebaseConfig";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import SafeAreaView from "react-native-safe-area-context"
-import Bookings from "./bookings";
+import { useAuthStore } from '@/store/authStore';
+ import Bookings from "./bookings";
 import SearchTalent from "./search-talent";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Messages from "./messages";
-import { useFocusEffect } from "@react-navigation/native";
-
-// Tab config
 const TABS = [
   { key: "community", label: "Community" },
   { key: "bookings", label: "Bookings" },
@@ -34,46 +30,20 @@ export default function ClientDashboard() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<string>("community");
-  const [userName, setUserName] = useState<string>("");
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  const { user } = useAuthStore();
+  const userName = user?.name || "User";
+  const profileImage = user?.photoURL || null;
 
   const isWeb = Platform.OS === 'web';
   const headerHeight = isWeb ? Math.min(180, height * 0.25) : 180;
 
-  useFocusEffect(
-    React.useCallback(() => {
-      const loadUserData = async () => {
-        if (Platform.OS === "web" && auth.currentUser) {
-          setUserName(auth.currentUser.displayName || "User");
-          setProfileImage(auth.currentUser.photoURL);
-        } else {
-          let storedName = await AsyncStorage.getItem("userName");
-          const storedImage = await AsyncStorage.getItem("userProfileImage");
-          if (!storedName && auth.currentUser) {
-            storedName = auth.currentUser.displayName || "";
-            if (storedName) await AsyncStorage.setItem("userName", storedName);
-          }
-          setUserName(storedName || "");
-          setProfileImage(storedImage || null);
-        }
-      };
-      loadUserData();
-    }, [])
-  );
-
-  const handleTabPress = (tabKey: string) => {
-    setActiveTab(tabKey);
-  };
+  const handleTabPress = (tabKey: string) => setActiveTab(tabKey);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1 }}
-        bounces={false}
-      >
-        {/* Green Header */}
-        <View style={[styles.headerContainer, { height: headerHeight }]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
+        <View style={[styles.headerContainer, { height: headerHeight }]}>          
           <TouchableOpacity
             style={[styles.settingsIcon, { top: isWeb ? 20 : 40 }]}
             onPress={() => router.push("/client/settings")}
@@ -90,7 +60,7 @@ export default function ClientDashboard() {
                 <FontAwesome name="user" size={isWeb ? 40 : 60} color="#fff" />
               </View>
             )}
-            <Text style={styles.profileName}>{userName || "User"}</Text>
+            <Text style={styles.profileName}>{userName}</Text>
           </View>
         </View>
 

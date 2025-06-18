@@ -5,7 +5,7 @@
 import {
   View,
   Text,
-  SafeAreaView,
+  // SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Platform,
@@ -18,6 +18,8 @@ import { FontAwesome, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { Button } from "~/components/ui/button";
 import { Rating } from "react-native-ratings";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list";
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { locationService, type LocationData } from "~/services/location";
 import CustomMapView, { Marker } from "../../components/CustomMapView";
 import { getDatabase, ref, onValue } from "firebase/database";

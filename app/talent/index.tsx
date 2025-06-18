@@ -1,94 +1,42 @@
  // app/talent/index.tsx(talent-dashboard.tsx)
 
-import React, { useState } from "react";
+ // app/talent/index.tsx (TalentDashboard)
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Image,
-  StyleSheet,
   Platform,
-  // SafeAreaView,
   useWindowDimensions,
   ScrollView,
-} from "react-native";
-import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FontAwesome, Feather } from "@expo/vector-icons";
-import SafeAreaView from "react-native-safe-area-context"
-import { auth } from "@/services/firebaseConfig";
-import { useFocusEffect } from "@react-navigation/native";
+  StyleSheet,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { FontAwesome, Feather } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuthStore } from '@/store/authStore';
 
 const TABS = [
-  { key: "community", label: "Community" },
-  { key: "bookings", label: "Bookings" },
-  { key: "messages", label: "Messages" },
+  { key: 'community', label: 'Community' },
+  { key: 'bookings', label: 'Bookings' },
+  { key: 'messages', label: 'Messages' },
 ];
 
 export default function TalentDashboard() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState<string>("community");
-  const [userName, setUserName] = useState<string>("");
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [activeTab, setActiveTab] = useState('community');
+  
+  const { user } = useAuthStore();
+  const userName = user?.name || 'Talent';
+  const profileImage = user?.photoURL || null;
+  
+  // Mock profile completion - you can replace this with actual store data
+  const [profileCompletion] = useState(75); // Replace with actual calculation from store
 
-  const isWeb = Platform.OS === "web";
+  const isWeb = Platform.OS === 'web';
   const headerHeight = isWeb ? Math.min(180, height * 0.25) : 180;
-
-  useFocusEffect(
-    React.useCallback(() => {
-      const loadUserData = async () => {
-        if (Platform.OS === "web" && auth.currentUser) {
-          setUserName(auth.currentUser.displayName || "Talent");
-          setProfileImage(auth.currentUser.photoURL);
-        } else {
-          let storedName = await AsyncStorage.getItem("talentName");
-          const storedImage = await AsyncStorage.getItem("talentProfileImage");
-          if ((!storedName || !storedName.trim()) && auth.currentUser) {
-            const fallback = auth.currentUser.displayName || "";
-            if (fallback) {
-              storedName = fallback;
-              await AsyncStorage.setItem("talentName", fallback);
-            }
-          }
-          setUserName(storedName || "");
-          setProfileImage(storedImage || null);
-        }
-
-        // Profile completion logic
-        const [
-          skills,
-          exp,
-          services,
-          pricing,
-          portfolio,
-          avail,
-          location,
-        ] = await AsyncStorage.multiGet([
-          "talentSkills",
-          "talentExperience",
-          "talentServices",
-          "talentPricing",
-          "talentPortfolio",
-          "talentAvailability",
-          "talentLocation",
-        ]);
-
-        const filled = [
-          skills[1],
-          exp[1],
-          services[1],
-          pricing[1],
-          portfolio[1],
-          avail[1],
-          location[1],
-        ].filter(Boolean).length;
-        setProfileCompletion(Math.round((filled / 7) * 100));
-      };
-      loadUserData();
-    }, [])
-  );
 
   // Content for each tab
   const renderTabContent = () => {
@@ -162,7 +110,7 @@ export default function TalentDashboard() {
                 <FontAwesome name="user" size={isWeb ? 40 : 60} color="#fff" />
               </View>
             )}
-            <Text style={styles.profileName}>{userName || "Talent"}</Text>
+            <Text style={styles.profileName}>{userName}</Text>
           </View>
         </View>
 
@@ -265,7 +213,6 @@ const styles = StyleSheet.create({
   tabsContainer: {
     maxHeight: 44,
     marginBottom: 6,
-    // Centered horizontally for web
   },
   tabsRow: {
     flexDirection: "row",

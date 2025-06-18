@@ -5,6 +5,8 @@ import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '~/supabase/supabase';
 import { router } from 'expo-router';
+import { useAuthStore } from '@/store/authStore';
+
 import {
   GoogleSignin,
   GoogleSigninButton,

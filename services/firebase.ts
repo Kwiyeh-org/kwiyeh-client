@@ -1,6 +1,7 @@
  // services/firebase.ts
 
-  // services/firebase.ts
+
+ // services/firebase.ts
 
 import axios from 'axios';
 import { Platform } from 'react-native';
@@ -9,6 +10,8 @@ import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from './firebaseConfig';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
+import { useAuthStore } from '@/store/authStore'; // ← INSERT HERE
+import type { UserRole } from '@/store/authStore';
 
 // Complete any in-progress browser auth sessions
 WebBrowser.maybeCompleteAuthSession();
@@ -20,7 +23,19 @@ const API_BASE_URL =
     : 'http://192.168.70.33:8080';
 
 /**
- * Mobile Google OAuth flow using Expo AuthSession & Supabase
+ * Helper function to determine role from redirect path
+ */
+const determineRoleFromPath = (redirectPath: string): UserRole => {   // ← return UserRole
+  if (redirectPath.includes('/talent')) {
+    return 'talent';
+  } else if (redirectPath.includes('/client')) {
+    return 'client';
+  }
+  return 'client'; // default
+};
+
+/**
+ * Mobile Google OAuth flow using Expo AuthSession & Firebase
  * @param redirectPath Path to navigate after auth
  */
 export async function signInWithGoogleMobile(
@@ -71,6 +86,16 @@ export async function signInWithGoogleMobile(
     // 5) Persist user ID locally
     await AsyncStorage.setItem('userId', userId);
 
+    // 🛑 AFTER Firebase auth succeeds:
+    const userData = {
+      id:        userId,
+      name:      userCred.user.displayName || '',
+      email:     userCred.user.email || '',
+      photoURL:  userCred.user.photoURL || null,
+      role:      determineRoleFromPath(redirectPath),
+    };
+    useAuthStore.getState().login(userData);
+
     // 6) Decide destination and return
     // (you may store role in a custom claim on your backend)
     return {
@@ -120,7 +145,7 @@ export const loginUser = async (email: string, password: string) => {
  * @param redirectPath target path after login
  */
 export const signInWithGoogle = async (
-  redirectPath:  '/client' | '/talent/talent-skillForm' = '/client'
+  redirectPath: '/client' | '/talent/talent-skillForm' = '/client'
 ) => {
   if (Platform.OS === 'web') {
     // Web: use Firebase popup
@@ -132,6 +157,17 @@ export const signInWithGoogle = async (
       const result = await signInWithPopup(auth, provider);
       const userId = result.user.uid;
       await AsyncStorage.setItem('userId', userId);
+
+      // 🛑 AFTER Firebase auth succeeds:
+      const userData = {
+        id:        userId,
+        name:      result.user.displayName || '',
+        email:     result.user.email || '',
+        photoURL:  result.user.photoURL || null,
+        role:      determineRoleFromPath(redirectPath),
+      };
+      useAuthStore.getState().login(userData); // ← INSERT HERE
+
       // navigate
       window.location.href = redirectPath;
       return { success: true, userId, redirectPath };

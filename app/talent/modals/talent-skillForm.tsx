@@ -5,7 +5,6 @@
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Platform,
@@ -14,6 +13,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Input } from "~/components/ui/input";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list"; // <--- Use your constants file

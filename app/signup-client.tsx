@@ -22,7 +22,7 @@ import {
 // Import Firebase authentication related modules
 import { auth } from "@/services/firebaseConfig";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-
+import { useAuthStore } from '@/store/authStore';
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Checkbox as MobileCheckbox } from "~/components/ui/checkbox";
@@ -38,6 +38,7 @@ import { signInWithGoogle } from "@/services/firebase";
 import { signInWithGoogleMobile } from "~/services/auth";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { UserRole } from '@/store/authStore';
 
 
 // Validation schema
@@ -118,9 +119,19 @@ export default function SignupClient() {
         phoneNumber: formattedPhone,
         password: values.password,
       });
-await AsyncStorage.setItem("userName", values.fullName);
+ // grab the new user’s ID
+const userId = await AsyncStorage.getItem('userId');
 
-       router.push("/client");
+const userData = {
+ id:        userId!,
+   name:      values.fullName,
+    email:     values.email,
+    photoURL:  null,
+    role:       'client' as UserRole,
+    phoneNumber: formattedPhone,
+  };
+  useAuthStore.getState().login(userData);                          // ← INSERT HERE
+  router.push("/client");
     } catch (error: any) {
       console.error("Detailed error:", JSON.stringify(error, null, 2));
 

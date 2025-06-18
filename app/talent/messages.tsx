@@ -4,11 +4,13 @@
 import { 
   View, 
   Text, 
-  SafeAreaView, 
+  // SafeAreaView, 
   StyleSheet, 
   Platform 
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 export default function TalentMessages() {
   return (

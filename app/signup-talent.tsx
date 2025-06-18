@@ -31,6 +31,8 @@ import * as Yup from "yup";
 import { registerUser } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { UserRole } from '@/store/authStore';
+import { useAuthStore } from '@/store/authStore'; 
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -100,9 +102,19 @@ export default function SignupTalent() {
         isTalent: true,
       }as any);
 
-      // Store talent name under "talentName"
-      await AsyncStorage.setItem("talentName", values.fullName);
-      router.push("/talent/modals/talent-skillForm");
+       const userId = await AsyncStorage.getItem('userId');
+
+ const userData = {
+   id:          userId!,
+    name:        values.fullName,
+    email:       values.email,
+    photoURL:    null,
+    role:         'talent' as UserRole,
+    phoneNumber: formattedPhone,
+  };
+  useAuthStore.getState().login(userData);                              // ← INSERT HERE
+ router.push("/talent/modals/talent-skillForm");
+      
     } catch (error: any) {
       if (error.message === "Email already in use") {
         Alert.alert("Signup Failed", "This email is already in use.");

@@ -21,6 +21,7 @@ import { Checkbox as WebCheckbox } from "~/components/ui-web/web-checkbox"; // Y
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { loginUser } from "~/services/firebase";
+import { useAuthStore } from '@/store/authStore';
 
 // Validation schema
 const LoginSchema = Yup.object().shape({
@@ -49,7 +50,17 @@ export default function Login() {
         email: values.email,
       });
 
-      await loginUser(values.email, values.password);
+       const data = await loginUser(values.email, values.password);
+
+ const userData = {
+  id:       data.localId,
+   name:     data.name,  
+     email:    data.email,
+  photoURL: data.photoURL || null,
+  role:     data.role,
+  };
+ useAuthStore.getState().login(userData);
+   router.push("/talent");
 
       // Navigate to talent dashboard after successful login (maintaining talent-specific routing)
        router.push("/talent");
