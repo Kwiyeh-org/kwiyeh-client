@@ -112,7 +112,7 @@ export default function SignupTalent() {
     role:         'talent' as UserRole,
     phoneNumber: formattedPhone,
   };
-  useAuthStore.getState().login(userData);                              // ← INSERT HERE
+ useAuthStore.getState().updateUser(userData);                            // ← INSERT HERE
  router.push("/talent/modals/talent-skillForm");
       
     } catch (error: any) {

@@ -60,7 +60,7 @@ export default function ClientDashboard() {
                 <FontAwesome name="user" size={isWeb ? 40 : 60} color="#fff" />
               </View>
             )}
-            <Text style={styles.profileName}>{userName}</Text>
+            <Text style={styles.profileName}>{user?.email}</Text>
           </View>
         </View>
 

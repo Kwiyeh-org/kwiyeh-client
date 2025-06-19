@@ -1,8 +1,6 @@
  // services/firebase.ts
 
 
- // services/firebase.ts
-
 import axios from 'axios';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -20,7 +18,7 @@ WebBrowser.maybeCompleteAuthSession();
 const API_BASE_URL =
   Platform.OS === 'web'
     ? 'http://localhost:8080'
-    : 'http://192.168.70.33:8080';
+    : 'http://192.168.103.33:8080';
 
 /**
  * Helper function to determine role from redirect path
@@ -40,7 +38,7 @@ const determineRoleFromPath = (redirectPath: string): UserRole => {   // ← ret
  */
 export async function signInWithGoogleMobile(
   redirectPath: '/client' | '/talent/talent-skillForm' = '/client'
-): Promise<{ success: boolean; userId: string; redirectPath: string }> {
+) {
   // 1) Build the Expo redirect URI (still used by Firebase)
   const redirectUri = AuthSession.makeRedirectUri({
     // @ts-ignore: useProxy is supported at runtime though not in types
@@ -94,15 +92,9 @@ export async function signInWithGoogleMobile(
       photoURL:  userCred.user.photoURL || null,
       role:      determineRoleFromPath(redirectPath),
     };
-    useAuthStore.getState().login(userData);
-
     // 6) Decide destination and return
     // (you may store role in a custom claim on your backend)
-    return {
-      success: true,
-      userId,
-      redirectPath, // unchanged
-    };
+    return userCred
   } catch (error) {
     console.error('Auth session error:', error);
     throw error;
@@ -166,7 +158,6 @@ export const signInWithGoogle = async (
         photoURL:  result.user.photoURL || null,
         role:      determineRoleFromPath(redirectPath),
       };
-      useAuthStore.getState().login(userData); // ← INSERT HERE
 
       // navigate
       window.location.href = redirectPath;

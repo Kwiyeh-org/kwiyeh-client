@@ -33,6 +33,7 @@ const LoginSchema = Yup.object().shape({
 export default function Login() {
   const router = useRouter();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const {updateUser,user} = useAuthStore()
 
   // Platform-specific checkbox component
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
@@ -58,8 +59,10 @@ const userData = {
   photoURL: data.photoURL || null,
    role:     data.role,
   };
- useAuthStore.getState().login(userData);
- router.push("/talent");
+
+  updateUser(userData)
+  console.log(user,"user data")
+  
 
 
       // Navigate to client dashboard after successful login

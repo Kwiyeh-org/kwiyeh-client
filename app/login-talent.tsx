@@ -33,10 +33,10 @@ const LoginSchema = Yup.object().shape({
 export default function Login() {
   const router = useRouter();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-
+  const {updateUser,user} = useAuthStore()
   // Platform-specific checkbox component
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
-
+  console.log(user,"user")
   // Handle login with proper validation
   const handleLogin = async (values: {
     email: string;
@@ -51,6 +51,7 @@ export default function Login() {
       });
 
        const data = await loginUser(values.email, values.password);
+       
 
  const userData = {
   id:       data.localId,
@@ -59,7 +60,7 @@ export default function Login() {
   photoURL: data.photoURL || null,
   role:     data.role,
   };
- useAuthStore.getState().login(userData);
+   updateUser(userData)
    router.push("/talent");
 
       // Navigate to talent dashboard after successful login (maintaining talent-specific routing)

@@ -35,10 +35,12 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import { registerUser } from "@/services/firebase";
 import { signInWithGoogle } from "@/services/firebase";
-import { signInWithGoogleMobile } from "~/services/auth";
+// import { signInWithGoogleMobile } from "~/services/auth";
+import { signInWithGoogleMobile } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserRole } from '@/store/authStore';
+
 
 
 // Validation schema
@@ -61,6 +63,7 @@ export default function SignupClient() {
   const router = useRouter();
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [isGoogleSignInAvailable, setIsGoogleSignInAvailable] = useState(true);
+  const {user,updateUser} = useAuthStore();
 
   GoogleSignin.configure({
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
@@ -126,11 +129,12 @@ const userData = {
  id:        userId!,
    name:      values.fullName,
     email:     values.email,
-    photoURL:  null,
+    photoURL:  values.photoURL,
     role:       'client' as UserRole,
     phoneNumber: formattedPhone,
   };
-  useAuthStore.getState().login(userData);                          // ← INSERT HERE
+  console.log(userData, "userData")
+updateUser(userData)
   router.push("/client");
     } catch (error: any) {
       console.error("Detailed error:", JSON.stringify(error, null, 2));
@@ -537,7 +541,8 @@ const userData = {
                   // Sign out first to clear previous session and force account picker
                   try {
                     // Just sign out to clear any existing sessions - skip checking if signed in
-                    await GoogleSignin.signOut();
+                   await GoogleSignin.signOut();
+                   
                     console.log(
                       "Successfully signed out from previous Google session"
                     );
@@ -549,16 +554,24 @@ const userData = {
                   // Proceed with sign-in
                   await GoogleSignin.hasPlayServices();
                   const userInfo = await GoogleSignin.signIn();
-                  console.log("User Info: ", userInfo);
-
+                  console.log("User Info: ", userInfo?.data?.user,user);
+                  updateUser({
+                  id:userInfo?.data?.user?.id as string,
+                  name:     userInfo?.data?.user?.name as string,
+                  email:   userInfo?.data?.user?.email as string,
+                  photoURL: userInfo?.data?.user?.photo || null,
+                  role:     "client"
+                  })
+                  
                   // ✂️ This is the key fix: explicitly fetch tokens (including idToken)
                   const { idToken } = await GoogleSignin.getTokens();
                   if (!idToken) throw new Error("No ID token present!");
-
+                  
                   // Exchange it for a Firebase credential
                   const credential = GoogleAuthProvider.credential(idToken);
                   const userCred = await signInWithCredential(auth, credential);
                   console.log("Firebase user:", userCred.user);
+                  
 
                   // Navigate to next screen if successful
                    router.replace("/client");
