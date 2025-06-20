@@ -1,5 +1,7 @@
- // services/firebase.ts
+// services/firebase.ts
 
+
+ // services/firebase.ts
 
 import axios from 'axios';
 import { Platform } from 'react-native';
@@ -8,7 +10,10 @@ import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from './firebaseConfig';
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
-import { useAuthStore } from '@/store/authStore'; // ← INSERT HERE
+
+// 🟢 Only for Web: Import here to allow SSR/Next.js, otherwise dynamic import
+import { useAuthStore } from '@/store/authStore'; // Ok to import at top-level for Expo, fine for CRA, Next.js dynamic import used in handler below
+
 import type { UserRole } from '@/store/authStore';
 
 // Complete any in-progress browser auth sessions
@@ -23,39 +28,29 @@ const API_BASE_URL =
 /**
  * Helper function to determine role from redirect path
  */
-const determineRoleFromPath = (redirectPath: string): UserRole => {   // ← return UserRole
-  if (redirectPath.includes('/talent')) {
-    return 'talent';
-  } else if (redirectPath.includes('/client')) {
-    return 'client';
-  }
-  return 'client'; // default
+const determineRoleFromPath = (redirectPath: string): UserRole => {
+  if (redirectPath.includes('/talent')) return 'talent';
+  if (redirectPath.includes('/client')) return 'client';
+  return 'client'; // fallback
 };
 
 /**
  * Mobile Google OAuth flow using Expo AuthSession & Firebase
- * @param redirectPath Path to navigate after auth
  */
 export async function signInWithGoogleMobile(
   redirectPath: '/client' | '/talent/talent-skillForm' = '/client'
 ) {
-  // 1) Build the Expo redirect URI (still used by Firebase)
   const redirectUri = AuthSession.makeRedirectUri({
     // @ts-ignore: useProxy is supported at runtime though not in types
     useProxy: true,
-    scheme: 'kwiyeh',         
+    scheme: 'kwiyeh',
   });
 
-  // 2) Launch Expo OAuth session against Google's endpoints
   try {
     // Import firebaseConfig for the OAuth client ID
     const { firebaseConfig } = require('./firebaseConfig');
-    
-    // For Google OAuth, we need to use a web client ID
-    // This is typically from your Google Cloud Console OAuth configuration
-    // Here we're using apiKey as a placeholder - you should replace this with your actual OAuth client ID
     const clientId = process.env.GOOGLE_WEB_CLIENT_ID || firebaseConfig.apiKey;
-    
+
     const result = await WebBrowser.openAuthSessionAsync(
       `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(clientId)}&` +
@@ -65,36 +60,30 @@ export async function signInWithGoogleMobile(
         `nonce=${Date.now()}`,
       redirectUri
     );
-    
+
     if (result.type !== 'success') {
       throw new Error('Authentication cancelled or failed');
     }
-    
-    // 3) Grab the id_token from the URL fragment
+
+    // Grab the id_token from the URL fragment
     const [, hash] = result.url.split('#');
     const params = Object.fromEntries(new URLSearchParams(hash));
     const idToken = params.id_token;
     if (!idToken) throw new Error('No ID token returned');
 
-    // 4) Exchange token for a Firebase credential
+    // Exchange token for a Firebase credential
     const credential = GoogleAuthProvider.credential(idToken);
     const userCred = await signInWithCredential(auth, credential);
     const userId = userCred.user.uid;
 
-    // 5) Persist user ID locally
+    // Persist user ID locally
     await AsyncStorage.setItem('userId', userId);
 
-    // 🛑 AFTER Firebase auth succeeds:
-    const userData = {
-      id:        userId,
-      name:      userCred.user.displayName || '',
-      email:     userCred.user.email || '',
-      photoURL:  userCred.user.photoURL || null,
-      role:      determineRoleFromPath(redirectPath),
-    };
-    // 6) Decide destination and return
-    // (you may store role in a custom claim on your backend)
-    return userCred
+    // --- HERE you can update Zustand if you want ---
+    // In mobile, it's more common to do updateUser in the calling component
+
+    // Return Firebase userCred
+    return userCred;
   } catch (error) {
     console.error('Auth session error:', error);
     throw error;
@@ -142,15 +131,14 @@ export const signInWithGoogle = async (
   if (Platform.OS === 'web') {
     // Web: use Firebase popup
     const provider = new GoogleAuthProvider();
-    // Force the account chooser on every call
     provider.setCustomParameters({ prompt: 'select_account' });
-    
+
     try {
       const result = await signInWithPopup(auth, provider);
       const userId = result.user.uid;
       await AsyncStorage.setItem('userId', userId);
 
-      // 🛑 AFTER Firebase auth succeeds:
+      // 🟢 Update Zustand user store right after Google login (WEB)
       const userData = {
         id:        userId,
         name:      result.user.displayName || '',
@@ -158,7 +146,11 @@ export const signInWithGoogle = async (
         photoURL:  result.user.photoURL || null,
         role:      determineRoleFromPath(redirectPath),
       };
-
+      if (typeof window !== 'undefined') {
+        // For SSR: require here is safe, but import at top-level also works in CRA/Expo
+        const { useAuthStore } = require('@/store/authStore');
+        useAuthStore.getState().updateUser(userData);
+      }
       // navigate
       window.location.href = redirectPath;
       return { success: true, userId, redirectPath };
@@ -167,12 +159,11 @@ export const signInWithGoogle = async (
       throw e;
     }
   } else {
-    // Native: use our mobile flow
+    // Native: use mobile flow
     return await signInWithGoogleMobile(redirectPath);
   }
 };
 
-// Export default for convenience
 export default {
   registerUser,
   loginUser,

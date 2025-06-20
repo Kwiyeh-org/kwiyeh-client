@@ -1,5 +1,7 @@
  // app/login-talent.tsx
 
+ // app/login-talent.tsx
+
 import React, { useState } from "react";
 import {
   View,
@@ -33,10 +35,12 @@ const LoginSchema = Yup.object().shape({
 export default function Login() {
   const router = useRouter();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const {updateUser,user} = useAuthStore()
+  const { updateUser, user } = useAuthStore();
+  
   // Platform-specific checkbox component
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
-  console.log(user,"user")
+  console.log(user, "user");
+
   // Handle login with proper validation
   const handleLogin = async (values: {
     email: string;
@@ -50,21 +54,19 @@ export default function Login() {
         email: values.email,
       });
 
-       const data = await loginUser(values.email, values.password);
-       
+      const data = await loginUser(values.email, values.password);
 
- const userData = {
-  id:       data.localId,
-   name:     data.name,  
-     email:    data.email,
-  photoURL: data.photoURL || null,
-  role:     data.role,
-  };
-   updateUser(userData)
-   router.push("/talent");
+      // Update Zustand store with user data
+      updateUser({
+        id: data.localId,
+        name: data.name,
+        email: data.email,
+        photoURL: data.photoURL || null,
+        role: 'talent',
+      });
 
-      // Navigate to talent dashboard after successful login (maintaining talent-specific routing)
-       router.push("/talent");
+      // Navigate to talent dashboard after successful login
+      router.push("/talent");
 
     } catch (error: any) {
       console.error("Login error details:", JSON.stringify(error, null, 2));

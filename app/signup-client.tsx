@@ -1,4 +1,5 @@
 // app/signup-client.tsx
+ 
 
  import React, { useState, useEffect } from "react";
 import {
@@ -21,7 +22,7 @@ import {
 
 // Import Firebase authentication related modules
 import { auth } from "@/services/firebaseConfig";
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from "firebase/auth";
 import { useAuthStore } from '@/store/authStore';
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
@@ -122,7 +123,7 @@ export default function SignupClient() {
         phoneNumber: formattedPhone,
         password: values.password,
       });
- // grab the new user’s ID
+ // grab the new user's ID
 const userId = await AsyncStorage.getItem('userId');
 
 const userData = {
@@ -186,26 +187,45 @@ updateUser(userData)
         );
       }
 
-      // Use the new signInWithGoogleMobile function for mobile platforms
+      // --- MOBILE (React Native) ---
       if (Platform.OS !== "web") {
-        try {
-          await signInWithGoogleMobile();
-          // Note: Navigation happens inside signInWithGoogleMobile
-        } catch (error: any) {
-          if (error.message?.includes("is not a function")) {
-            // Fallback if there's an issue with the auth flow
-            Alert.alert(
-              "Authentication Error",
-              "There was a problem with the Google Sign-In process. Please try again or use email/password instead."
-            );
-          } else {
-            throw error;
-          }
-        }
-      } else {
-        // For web, use the existing signInWithGoogle function
-        await signInWithGoogle("/client");
+        // Proceed with sign-in
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        console.log("User Info: ", userInfo?.data?.user, user);
+        
+        // ✂️ This is the key fix: explicitly fetch tokens (including idToken)
+        const { idToken } = await GoogleSignin.getTokens();
+        if (!idToken) throw new Error("No ID token present!");
+        
+        // Exchange it for a Firebase credential
+        const credential = GoogleAuthProvider.credential(idToken);
+        const userCred = await signInWithCredential(auth, credential);
+        console.log("Firebase user:", userCred.user);
+        
+        updateUser({
+          id: userCred.user.uid,
+          name: userCred.user.displayName || '',
+          email: userCred.user.email || '',
+          photoURL: userCred.user.photoURL || null,
+          role: 'client',
+        });
+        router.replace("/client");
+        return;
       }
+
+      // --- WEB ---
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      updateUser({
+        id: result.user.uid,
+        name: result.user.displayName || '',
+        email: result.user.email || '',
+        photoURL: result.user.photoURL || null,
+        role: 'client',
+      });
+      window.location.href = "/client";
+
     } catch (error: any) {
       console.error("Google Sign In error:", error);
       Alert.alert(
@@ -533,72 +553,7 @@ updateUser(userData)
             <GoogleSigninButton
               size={GoogleSigninButton.Size.Wide}
               color={GoogleSigninButton.Color.Dark}
-              onPress={async () => {
-                console.log("Signing in with Google");
-                try {
-                  setIsSigningUp(true);
-
-                  // Sign out first to clear previous session and force account picker
-                  try {
-                    // Just sign out to clear any existing sessions - skip checking if signed in
-                   await GoogleSignin.signOut();
-                   
-                    console.log(
-                      "Successfully signed out from previous Google session"
-                    );
-                  } catch (signOutError) {
-                    console.log("Error signing out:", signOutError);
-                    // Continue with sign-in process even if sign-out fails
-                  }
-
-                  // Proceed with sign-in
-                  await GoogleSignin.hasPlayServices();
-                  const userInfo = await GoogleSignin.signIn();
-                  console.log("User Info: ", userInfo?.data?.user,user);
-                  updateUser({
-                  id:userInfo?.data?.user?.id as string,
-                  name:     userInfo?.data?.user?.name as string,
-                  email:   userInfo?.data?.user?.email as string,
-                  photoURL: userInfo?.data?.user?.photo || null,
-                  role:     "client"
-                  })
-                  
-                  // ✂️ This is the key fix: explicitly fetch tokens (including idToken)
-                  const { idToken } = await GoogleSignin.getTokens();
-                  if (!idToken) throw new Error("No ID token present!");
-                  
-                  // Exchange it for a Firebase credential
-                  const credential = GoogleAuthProvider.credential(idToken);
-                  const userCred = await signInWithCredential(auth, credential);
-                  console.log("Firebase user:", userCred.user);
-                  
-
-                  // Navigate to next screen if successful
-                   router.replace("/client");
-                } catch (error: any) {
-                  if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                    // user cancelled the login flow
-                    console.log("cancelled");
-                  } else if (error.code === statusCodes.IN_PROGRESS) {
-                    // operation (e.g. sign in) is in progress already
-                    console.log("progress");
-                  } else if (
-                    error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
-                  ) {
-                    // play services not available or outdated
-                    console.log("no playstore");
-                  } else {
-                    // some other error happened
-                    console.log(error);
-                    Alert.alert(
-                      "Google Sign In Failed",
-                      error.message || "Authentication failed"
-                    );
-                  }
-                } finally {
-                  setIsSigningUp(false);
-                }
-              }}
+              onPress={handleGoogleSignIn}
             />
           )}
 

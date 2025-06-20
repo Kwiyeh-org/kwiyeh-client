@@ -1,6 +1,6 @@
  // app/talent/index.tsx(talent-dashboard.tsx)
 
- // app/talent/index.tsx (TalentDashboard)
+  
 import React, { useState } from 'react';
 import {
   View,

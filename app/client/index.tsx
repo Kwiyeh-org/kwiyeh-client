@@ -1,6 +1,5 @@
  //app/client/index.tsx(client-dashboard.tsx)
-
-  import React, { useState } from "react";
+ import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,15 +9,15 @@ import {
   Platform,
   useWindowDimensions,
   ScrollView,
-  // SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { useAuthStore } from '@/store/authStore';
- import Bookings from "./bookings";
+import Bookings from "./bookings";
 import SearchTalent from "./search-talent";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Messages from "./messages";
+
 const TABS = [
   { key: "community", label: "Community" },
   { key: "bookings", label: "Bookings" },
@@ -32,7 +31,7 @@ export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState<string>("community");
 
   const { user } = useAuthStore();
-  const userName = user?.name || "User";
+  const userName = user?.name || "Client";
   const profileImage = user?.photoURL || null;
 
   const isWeb = Platform.OS === 'web';
@@ -60,7 +59,7 @@ export default function ClientDashboard() {
                 <FontAwesome name="user" size={isWeb ? 40 : 60} color="#fff" />
               </View>
             )}
-            <Text style={styles.profileName}>{user?.email}</Text>
+            <Text style={styles.profileName}>{userName}</Text>
           </View>
         </View>
 

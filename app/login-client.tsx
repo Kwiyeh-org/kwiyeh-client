@@ -1,5 +1,5 @@
  // app/login-client.tsx
-
+ 
 import React, { useState } from "react";
 import {
   View,
@@ -51,20 +51,16 @@ export default function Login() {
         email: values.email,
       });
 
-       const data = await loginUser(values.email, values.password);
-const userData = {
- id:       data.localId,
- name:     data.name,
-  email:    data.email,
-  photoURL: data.photoURL || null,
-   role:     data.role,
-  };
-
-  updateUser(userData)
-  console.log(user,"user data")
-  
-
-
+      const data = await loginUser(values.email, values.password);
+      updateUser({
+        id: data.localId,
+        name: data.name,
+        email: data.email,
+        photoURL: data.photoURL || null,
+        role: 'client',
+      });
+      console.log(user,"user data")
+      
       // Navigate to client dashboard after successful login
       router.push("/client");
     } catch (error: any) {

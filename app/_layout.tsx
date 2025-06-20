@@ -1,6 +1,6 @@
  // app/_layout.tsx
  
- 'use client';
+  'use client';
 import "~/global.css";
 import {
   DarkTheme,
@@ -9,12 +9,14 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as React from "react";
+import React, { useEffect } from "react";
 import { useColorScheme } from "react-native";
-// Remove all references to ~/lib/*
+// Add these imports:
+import { useAuthStore } from "@/store/authStore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Catch errors as before
 export {
-  // Catch any errors thrown by the Layout component
   ErrorBoundary,
 } from "expo-router";
 
@@ -22,9 +24,50 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  // --- HYDRATE ZUSTAND STORE ON LOAD ---
+  const { updateUser, logout } = useAuthStore();
+
+  useEffect(() => {
+    async function hydrateUser() {
+      let userData = null;
+      // Platform detection: window === undefined means native
+      if (typeof window !== "undefined" && window.localStorage) {
+        // Web
+        const stored = localStorage.getItem("auth-storage");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            userData = parsed.state?.user || null;
+          } catch (e) {
+            userData = null;
+          }
+        }
+      } else {
+        // Mobile/Native
+        const stored = await AsyncStorage.getItem("auth-storage");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            userData = parsed.state?.user || null;
+          } catch (e) {
+            userData = null;
+          }
+        }
+      }
+      if (userData) {
+        updateUser(userData);
+      } else {
+        logout();
+      }
+    }
+    hydrateUser();
+    // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- REST OF LAYOUT AS BEFORE ---
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      {/* The StatusBar adapts to light/dark theme accordingly */}
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack initialRouteName="index">
         <Stack.Screen
@@ -39,7 +82,6 @@ export default function RootLayout() {
           options={{
             title: "Select Your Role",
             headerShown: false,
-            // Remove headerRight if it used ThemeToggle from ~/components/ThemeToggle
           }}
         />
         <Stack.Screen

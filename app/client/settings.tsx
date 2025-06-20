@@ -1,6 +1,5 @@
-//app/client/settings.tsx
+ // app/client/settings.tsx
 
- 
 import React, { useState } from "react";
 import {
   View,
@@ -9,9 +8,7 @@ import {
   ScrollView,
   Image,
   Platform,
-   
   Alert,
-  ActivityIndicator,
   StyleSheet,
 } from "react-native";
 import { Input } from '~/components/ui/input';
@@ -26,16 +23,11 @@ import type { User } from '@/store/authStore';
 
 export default function ClientSettings() {
   const router = useRouter();
-  const {
-    user,
-    updateProfile: updateStoreProfile,
-    logout,
-    deleteAccount,
-  } = useAuthStore();
+  const { user, updateProfile, logout, deleteAccount } = useAuthStore();
 
   const [fullName, setFullName] = useState(user?.name || '');
   const [profileImage, setProfileImage] = useState(user?.photoURL || null);
- const [location, setLocation] = useState<User['location']>(user?.location);
+  const [location, setLocation] = useState<User['location'] | undefined>(user?.location);
   const [isSaving, setIsSaving] = useState(false);
 
   const pickImage = async () => {
@@ -43,38 +35,35 @@ export default function ClientSettings() {
       if (Platform.OS !== "web") {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
-          Alert.alert("Permission Required", "Sorry, we need camera roll permissions to make this work!");
+          Alert.alert("Permission Required", "We need camera roll permissions!");
           return;
         }
       }
-      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
-      
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        setProfileImage(uri);
+        setProfileImage(result.assets[0].uri);
       }
-    } catch (error) {
-      console.error("Error picking image:", error);
+    } catch {
       Alert.alert("Error", "Failed to select image");
     }
   };
 
-   const saveProfile = async () => {
-  setIsSaving(true);
-  await updateStoreProfile({
-    name: fullName,
-    photoURL: profileImage ?? undefined,
-    location,          // now type-compatible!
-  });
-  // …sync to Firebase if you need
-  setIsSaving(false);
-};
+  const saveProfile = async () => {
+    setIsSaving(true);
+    await updateProfile({
+      name: fullName,
+      photoURL: profileImage ?? undefined,
+      location,
+    });
+    setIsSaving(false);
+    Alert.alert('Success', 'Profile updated!');
+  };
+
   const handleLogout = () => {
     logout();
     router.replace('/login-client');
@@ -90,7 +79,6 @@ export default function ClientSettings() {
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
           <Text style={styles.title}>Settings</Text>
-          
           {/* Profile Photo Section */}
           <View style={styles.photoContainer}>
             <TouchableOpacity
@@ -100,10 +88,7 @@ export default function ClientSettings() {
             >
               <View style={styles.photoWrapper}>
                 {profileImage ? (
-                  <Image
-                    source={{ uri: profileImage }}
-                    style={styles.profileImage}
-                  />
+                  <Image source={{ uri: profileImage }} style={styles.profileImage} />
                 ) : (
                   <FontAwesome name="user" size={40} color="#666666" />
                 )}
@@ -114,10 +99,8 @@ export default function ClientSettings() {
             </TouchableOpacity>
             <Text style={styles.photoText}>Tap to change profile photo</Text>
           </View>
-
           {/* Profile Information */}
           <View style={styles.formSection}>
-            {/* Full Name Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
               <Input
@@ -127,43 +110,26 @@ export default function ClientSettings() {
                 style={styles.input}
               />
             </View>
-
-            {/* Location Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Location</Text>
               <LocationField
                 value={location?.address || ""}
-                onChange={(locObj) => setLocation(locObj)}
+                onChange={setLocation}
                 isTalent={false}
               />
             </View>
           </View>
-
           {/* Save Button */}
-          <Button
-            style={styles.saveButton}
-            onPress={saveProfile}
-            disabled={isSaving}
-          >
-            <Text style={styles.saveButtonText}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Text>
+          <Button style={styles.saveButton} onPress={saveProfile} disabled={isSaving}>
+            <Text style={styles.saveButtonText}>{isSaving ? 'Saving...' : 'Save Changes'}</Text>
           </Button>
-
-          {/* Logout Button */}
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={handleLogout}
-          >
+          {/* Logout */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
-
-          {/* Delete Account Button */}
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleAccountDeletion}
-          >
+          {/* Delete Account */}
+          <TouchableOpacity style={styles.deleteButton} onPress={handleAccountDeletion}>
             <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
             <Text style={styles.deleteText}>Delete Account</Text>
           </TouchableOpacity>

@@ -1,7 +1,5 @@
  //app/talent/settings.tsx
 
-     
- // app/talent/settings.tsx (TalentSettings)
 import React, { useState } from 'react';
 import {
   View,
@@ -30,11 +28,11 @@ import type { User } from '@/store/authStore';
 
 export default function TalentSettings() {
   const router = useRouter();
-  const { user, updateProfile: updateStoreProfile, logout, deleteAccount } = useAuthStore();
-  
+  const { user, updateProfile, logout, deleteAccount } = useAuthStore();
+
   const [fullName, setFullName] = useState(user?.name || '');
   const [profileImage, setProfileImage] = useState<string | null>(user?.photoURL || null);
- const [location, setLocation] = useState<User['location'] | undefined>(user?.location);
+  const [location, setLocation] = useState<User['location'] | undefined>(user?.location);
   const [selectedServices, setSelectedServices] = useState<string[]>(user?.services || []);
   const [pricing, setPricing] = useState(user?.pricing || '');
   const [availability, setAvailability] = useState(user?.availability || '');
@@ -48,15 +46,14 @@ export default function TalentSettings() {
       aspect: [1, 1],
       quality: 0.8,
     });
-
     if (!result.canceled) {
       setProfileImage(result.assets[0].uri);
     }
   };
 
   const toggleService = (service: string) => {
-    setSelectedServices(prev => 
-      prev.includes(service) 
+    setSelectedServices(prev =>
+      prev.includes(service)
         ? prev.filter(s => s !== service)
         : [...prev, service]
     );
@@ -67,21 +64,19 @@ export default function TalentSettings() {
       Alert.alert('Error', 'Please enter your full name');
       return;
     }
-
     setIsLoading(true);
     try {
-      await updateStoreProfile({
+      await updateProfile({
         name: fullName,
         photoURL: profileImage,
         location,
         services: selectedServices,
         pricing,
         availability,
-        isMobile: isMobile,
+        isMobile,
       });
-      
       Alert.alert('Success', 'Profile updated successfully!');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
@@ -94,8 +89,8 @@ export default function TalentSettings() {
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
+        {
+          text: 'Logout',
           style: 'destructive',
           onPress: () => {
             logout();
@@ -112,8 +107,8 @@ export default function TalentSettings() {
       'This action cannot be undone. Are you sure you want to delete your account?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: () => {
             deleteAccount();
@@ -129,16 +124,12 @@ export default function TalentSettings() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Feather name="arrow-left" size={24} color="#166534" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Settings</Text>
           <View style={styles.headerSpacer} />
         </View>
-
         {/* Profile Picture Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Picture</Text>
@@ -155,7 +146,6 @@ export default function TalentSettings() {
             </TouchableOpacity>
           </View>
         </View>
-
         {/* Personal Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal Information</Text>
@@ -169,14 +159,12 @@ export default function TalentSettings() {
             />
           </View>
         </View>
-
         {/* Location */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Location</Text>
           <LocationField
-            value={location??''}
+            value={location ?? ''}
             onChange={setLocation}
- 
           />
           {location && (
             <View style={styles.mapContainer}>
@@ -200,7 +188,6 @@ export default function TalentSettings() {
             </View>
           )}
         </View>
-
         {/* Services */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Services Offered</Text>
@@ -229,7 +216,6 @@ export default function TalentSettings() {
             ))}
           </View>
         </View>
-
         {/* Pricing */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pricing</Text>
@@ -244,7 +230,6 @@ export default function TalentSettings() {
             />
           </View>
         </View>
-
         {/* Availability */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Availability</Text>
@@ -260,7 +245,6 @@ export default function TalentSettings() {
             />
           </View>
         </View>
-
         {/* Service Type */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Service Type</Text>
@@ -274,17 +258,16 @@ export default function TalentSettings() {
             />
           </View>
           <Text style={styles.switchDescription}>
-            {isMobile 
-              ? 'You provide services at client locations' 
+            {isMobile
+              ? 'You provide services at client locations'
               : 'Clients come to your location or you meet at agreed locations'
             }
           </Text>
         </View>
-
         {/* Action Buttons */}
         <View style={styles.actionSection}>
-          <TouchableOpacity 
-            style={styles.saveButton} 
+          <TouchableOpacity
+            style={styles.saveButton}
             onPress={saveProfile}
             disabled={isLoading}
           >
@@ -294,11 +277,9 @@ export default function TalentSettings() {
               <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.deleteButton} onPress={handleAccountDeletion}>
             <Text style={styles.deleteButtonText}>Delete Account</Text>
           </TouchableOpacity>

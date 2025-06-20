@@ -1,6 +1,7 @@
- // app/signup-talent.tsx
+// app/signup-talent.tsx
 
-  import React, { useState, useEffect } from "react";
+ 
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -54,6 +55,7 @@ export default function SignupTalent() {
   const router = useRouter();
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [isGoogleSignInAvailable, setIsGoogleSignInAvailable] = useState(true);
+  const { updateUser } = useAuthStore();
 
   GoogleSignin.configure({
     scopes: ["https://www.googleapis.com/auth/drive.readonly"],
@@ -100,20 +102,22 @@ export default function SignupTalent() {
         phoneNumber: formattedPhone,
         password: values.password,
         isTalent: true,
-      }as any);
+      } as any);
 
-       const userId = await AsyncStorage.getItem('userId');
+      const userId = await AsyncStorage.getItem('userId');
 
- const userData = {
-   id:          userId!,
-    name:        values.fullName,
-    email:       values.email,
-    photoURL:    null,
-    role:         'talent' as UserRole,
-    phoneNumber: formattedPhone,
-  };
- useAuthStore.getState().updateUser(userData);                            // ← INSERT HERE
- router.push("/talent/modals/talent-skillForm");
+      // Update Zustand store with user data
+      updateUser({
+        id: userId!,
+        name: values.fullName,
+        email: values.email,
+        photoURL: null,
+        role: 'talent' as UserRole,
+        phoneNumber: formattedPhone,
+      });
+      
+      console.log("User data updated in store");
+      router.push("/talent/modals/talent-skillForm");
       
     } catch (error: any) {
       if (error.message === "Email already in use") {
@@ -138,64 +142,82 @@ export default function SignupTalent() {
   };
 
   // Google Sign-In handler for both web and mobile
-const handleGoogleSignIn = async () => {
-  try {
-    setIsSigningUp(true);
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsSigningUp(true);
 
-    // --- MOBILE (React Native) ---
-    if (Platform.OS !== "web") {
-      try {
-        await GoogleSignin.signOut();
-      } catch {}
+      // --- MOBILE (React Native) ---
+      if (Platform.OS !== "web") {
+        try {
+          await GoogleSignin.signOut();
+        } catch {}
 
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
-      const { idToken } = await GoogleSignin.getTokens();
-      if (!idToken) throw new Error("No ID token present!");
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        const { idToken } = await GoogleSignin.getTokens();
+        if (!idToken) throw new Error("No ID token present!");
 
-      // Firebase login
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCred = await signInWithCredential(auth, credential);
+        // Firebase login
+        const credential = GoogleAuthProvider.credential(idToken);
+        const userCred = await signInWithCredential(auth, credential);
 
-      // Save display name as talentName ONLY if not present
-      const displayName = userCred.user.displayName || "";
+        // Update Zustand store with user info
+        updateUser({
+          id: userCred.user.uid,
+          name: userCred.user.displayName || '',
+          email: userCred.user.email || '',
+          photoURL: userCred.user.photoURL || null,
+          role: 'talent',
+        });
+
+        // Save display name as talentName ONLY if not present
+        const displayName = userCred.user.displayName || "";
+        const existingTalentName = await AsyncStorage.getItem("talentName");
+        if (!existingTalentName || existingTalentName.trim() === "") {
+          await AsyncStorage.setItem("talentName", displayName);
+        }
+        await AsyncStorage.setItem("userId", userCred.user.uid);
+
+        router.replace("/talent/modals/talent-skillForm");
+        return;
+      }
+
+      // --- WEB ---
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await signInWithPopup(auth, provider);
+
+      // Update Zustand store with user info
+      updateUser({
+        id: result.user.uid,
+        name: result.user.displayName || '',
+        email: result.user.email || '',
+        photoURL: result.user.photoURL || null,
+        role: 'talent',
+      });
+
+      const displayName = result.user.displayName || "";
       const existingTalentName = await AsyncStorage.getItem("talentName");
       if (!existingTalentName || existingTalentName.trim() === "") {
         await AsyncStorage.setItem("talentName", displayName);
       }
-      await AsyncStorage.setItem("userId", userCred.user.uid);
+      await AsyncStorage.setItem("userId", result.user.uid);
 
-      router.replace("/talent/modals/talent-skillForm");
-      return;
+      window.location.href = "/talent/modals/talent-skillForm";
+    } catch (error: any) {
+      if (Platform.OS !== "web" && error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled the login flow
+      } else if (Platform.OS !== "web" && error.code === statusCodes.IN_PROGRESS) {
+        // operation (e.g. sign in) is in progress already
+      } else if (Platform.OS !== "web" && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert("Google Play Services not available.");
+      } else {
+        Alert.alert("Google Sign In Failed", error.message || "Authentication failed");
+      }
+    } finally {
+      setIsSigningUp(false);
     }
-
-    // --- WEB ---
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-    const result = await signInWithPopup(auth, provider);
-
-    const displayName = result.user.displayName || "";
-    const existingTalentName = await AsyncStorage.getItem("talentName");
-    if (!existingTalentName || existingTalentName.trim() === "") {
-      await AsyncStorage.setItem("talentName", displayName);
-    }
-    await AsyncStorage.setItem("userId", result.user.uid);
-
-    window.location.href = "/talent/modals/talent-skillForm";
-  } catch (error: any) {
-    if (Platform.OS !== "web" && error.code === statusCodes.SIGN_IN_CANCELLED) {
-      // user cancelled the login flow
-    } else if (Platform.OS !== "web" && error.code === statusCodes.IN_PROGRESS) {
-      // operation (e.g. sign in) is in progress already
-    } else if (Platform.OS !== "web" && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      Alert.alert("Google Play Services not available.");
-    } else {
-      Alert.alert("Google Sign In Failed", error.message || "Authentication failed");
-    }
-  } finally {
-    setIsSigningUp(false);
-  }
-};
+  };
 
   // Navigate to login page
   const handleLogin = () => {
