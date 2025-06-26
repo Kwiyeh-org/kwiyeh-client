@@ -52,7 +52,7 @@ export default function Login() {
         email: values.email,
       });
 
-      const data = await loginUser(values.email, values.password);
+      const data = await loginUser(values.email, values.password, 'client');
       updateUser({
         id: data.localId,
         name: data.name,
@@ -106,8 +106,13 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       setIsLoggingIn(true);
-      await handleGoogleAuth('client');
-      router.push('/client');
+      const result = await handleGoogleAuth('client');
+      if (result.success && result.user) {
+        updateUser(result.user); // Ensure sync
+        router.push('/client');
+      } else {
+        Alert.alert('Google Login Failed', 'Could not authenticate user.');
+      }
     } catch (error: any) {
       Alert.alert('Google Login Failed', error.message || 'Authentication failed');
     } finally {

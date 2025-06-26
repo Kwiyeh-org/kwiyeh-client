@@ -16,9 +16,10 @@ const API_BASE_URL =
 
 export async function handleGoogleAuth(role: 'client' | 'talent') {
   let idToken: string | null = null;
-  let profile: { name?: string; photoURL?: string | null } = {};
+  let profile: { name?: string; photoURL?: string | null; email?: string } = {};
 
   if (Platform.OS === 'web') {
+    console.log('[GoogleAuth] Platform: web');
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     const result = await signInWithPopup(auth, provider);
@@ -26,8 +27,10 @@ export async function handleGoogleAuth(role: 'client' | 'talent') {
     profile = {
       name: result.user.displayName || '',
       photoURL: result.user.photoURL || null,
+      email: result.user.email || '',
     };
   } else {
+    console.log('[GoogleAuth] Platform: native');
     await GoogleSignin.hasPlayServices();
     // Use 'any' to avoid linter error due to type mismatch in library typings
     const userInfo: any = await GoogleSignin.signIn();
@@ -36,24 +39,32 @@ export async function handleGoogleAuth(role: 'client' | 'talent') {
     profile = {
       name: userInfo.user?.name || '',
       photoURL: userInfo.user?.photo || null,
+      email: userInfo.user?.email || '',
     };
   }
 
   if (!idToken) throw new Error('No Google token');
 
-  // Send token to backend using the correct API_BASE_URL
-  const { data } = await axios.post(`${API_BASE_URL}/google-login`, { request: idToken });
+  // Debug log the payload
+  const payload = { token: idToken, role };
+  console.log('[GoogleAuth] Sending to /google-login:', payload);
 
-  if (data && data.UId) {
-    useAuthStore.getState().updateUser({
-      id: data.UId,
-      email: data.email,
+  try {
+    const { data } = await axios.post(`${API_BASE_URL}/google-login`, payload);
+    console.log('[GoogleAuth] Backend response:', data);
+    // Only proceed if backend responds successfully
+    // Use Google profile info for Zustand
+    const userObj = {
+      id: idToken, // Use idToken as a unique identifier (or you can use result.user.uid if available)
+      email: profile.email || '',
       name: profile.name || '',
       photoURL: profile.photoURL || null,
       role,
-    });
-    return { success: true };
-  } else {
-    throw new Error('No account found. Please sign up first.');
+    };
+    useAuthStore.getState().updateUser(userObj);
+    return { success: true, user: userObj };
+  } catch (err: any) {
+    console.error('[GoogleAuth] Error from /google-login:', err?.response?.data || err);
+    throw new Error(err?.response?.data?.message || 'Google login failed.');
   }
 } 

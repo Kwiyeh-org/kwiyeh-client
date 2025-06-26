@@ -15,7 +15,6 @@ import {
   TextStyle,
 } from "react-native";
 import {
-  GoogleSignin,
   GoogleSigninButton,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
@@ -67,12 +66,16 @@ export default function SignupClient() {
   const [isGoogleSignInAvailable, setIsGoogleSignInAvailable] = useState(true);
   const {user,updateUser} = useAuthStore();
 
-  GoogleSignin.configure({
-    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
-    webClientId:
-      "526766693911-33hjbi26mjndnijda5fgg5iaehm07g54.apps.googleusercontent.com",
-    offlineAccess: true,
-  });
+  // Only configure GoogleSignin on mobile
+  if (Platform.OS !== 'web') {
+    const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+    GoogleSignin.configure({
+      scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+      webClientId:
+        "526766693911-33hjbi26mjndnijda5fgg5iaehm07g54.apps.googleusercontent.com",
+      offlineAccess: true,
+    });
+  }
 
   // Default country
   const initialCountry: Country = {
@@ -123,6 +126,7 @@ export default function SignupClient() {
         email: values.email,
         phoneNumber: formattedPhone,
         password: values.password,
+        role: 'client',
       });
  // grab the new user's ID
 const userId = await AsyncStorage.getItem('userId');
@@ -168,8 +172,13 @@ updateUser(userData)
   const handleGoogleSignup = async () => {
     try {
       setIsSigningUp(true);
-      await handleGoogleAuth('client');
-      router.push('/client');
+      const result = await handleGoogleAuth('client');
+      if (result.success && result.user) {
+        updateUser(result.user); // Ensure sync
+        router.push('/client');
+      } else {
+        Alert.alert('Google Signup Failed', 'Could not authenticate user.');
+      }
     } catch (error: any) {
       Alert.alert('Google Signup Failed', error.message || 'Authentication failed');
     } finally {

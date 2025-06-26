@@ -1,8 +1,6 @@
 // services/firebase.ts
 
 
- // services/firebase.ts
-
 import axios from 'axios';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -96,6 +94,7 @@ export const registerUser = async (userData: {
   email: string;
   phoneNumber: string;
   password: string;
+  role: string;
 }) => {
   const { data } = await axios.post(
     `${API_BASE_URL}/signup`,
@@ -108,10 +107,10 @@ export const registerUser = async (userData: {
   return data;
 };
 
-export const loginUser = async (email: string, password: string) => {
+export const loginUser = async (email: string, password: string, role: string) => {
   const { data } = await axios.post(
     `${API_BASE_URL}/login`,
-    { email, password }
+    { email, password, role }
   );
   await AsyncStorage.multiSet([
     ['userId', data.localId],

@@ -53,7 +53,7 @@ export default function Login() {
         email: values.email,
       });
 
-      const data = await loginUser(values.email, values.password);
+      const data = await loginUser(values.email, values.password, 'talent');
 
       // Update Zustand store with user data
       updateUser({
@@ -109,8 +109,13 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       setIsLoggingIn(true);
-      await handleGoogleAuth('talent');
-      router.push('/talent');
+      const result = await handleGoogleAuth('talent');
+      if (result.success && result.user) {
+        updateUser(result.user); // Ensure sync
+        router.push('/talent');
+      } else {
+        Alert.alert('Google Login Failed', 'Could not authenticate user.');
+      }
     } catch (error: any) {
       Alert.alert('Google Login Failed', error.message || 'Authentication failed');
     } finally {

@@ -13,12 +13,6 @@ import {
   ViewStyle,
   TextStyle,
 } from "react-native";
-import {
-  GoogleSignin,
-  GoogleSigninButton,
-  statusCodes,
-} from "@react-native-google-signin/google-signin";
-import { auth } from "@/services/firebaseConfig";
 import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from "firebase/auth";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
@@ -34,6 +28,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserRole } from '@/store/authStore';
 import { useAuthStore } from '@/store/authStore';
 import { handleGoogleAuth } from '@/services/googleAuthHandler';
+import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -57,12 +52,16 @@ export default function SignupTalent() {
   const [isGoogleSignInAvailable, setIsGoogleSignInAvailable] = useState(true);
   const { updateUser } = useAuthStore();
 
-  GoogleSignin.configure({
-    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
-    webClientId:
-      "526766693911-33hjbi26mjndnijda5fgg5iaehm07g54.apps.googleusercontent.com",
-    offlineAccess: true,
-  });
+  // Only configure GoogleSignin on mobile
+  if (Platform.OS !== 'web') {
+    const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+    GoogleSignin.configure({
+      scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+      webClientId:
+        "526766693911-33hjbi26mjndnijda5fgg5iaehm07g54.apps.googleusercontent.com",
+      offlineAccess: true,
+    });
+  }
 
   // Default country
   const initialCountry: Country = {
@@ -101,8 +100,8 @@ export default function SignupTalent() {
         email: values.email,
         phoneNumber: formattedPhone,
         password: values.password,
-        isTalent: true,
-      } as any);
+        role: 'talent',
+      });
 
       const userId = await AsyncStorage.getItem('userId');
 
@@ -145,8 +144,13 @@ export default function SignupTalent() {
   const handleGoogleSignup = async () => {
     try {
       setIsSigningUp(true);
-      await handleGoogleAuth('talent');
-      router.push('/talent/modals/talent-skillForm');
+      const result = await handleGoogleAuth('talent');
+      if (result.success && result.user) {
+        updateUser(result.user); // Ensure sync
+        router.push('/talent/modals/talent-skillForm');
+      } else {
+        Alert.alert('Google Signup Failed', 'Could not authenticate user.');
+      }
     } catch (error: any) {
       Alert.alert('Google Signup Failed', error.message || 'Authentication failed');
     } finally {
@@ -413,16 +417,24 @@ export default function SignupTalent() {
           </View>
 
           {/* Google Sign-In */}
-          <Button
-            className="bg-white border border-gray-300 rounded-full py-3 flex-row justify-center items-center mb-4"
-            onPress={handleGoogleSignup}
-            disabled={isSigningUp}
-            accessibilityLabel="Sign up with Google"
-          >
-            <Text style={{ color: '#757575', fontWeight: '500' }}>
-              {isSigningUp ? 'Processing...' : 'Sign up with Google'}
-            </Text>
-          </Button>
+          {Platform.OS === 'web' ? (
+            <Button
+              className="bg-white border border-gray-300 rounded-full py-3 flex-row justify-center items-center mb-4"
+              onPress={handleGoogleSignup}
+              disabled={isSigningUp}
+              accessibilityLabel="Sign up with Google"
+            >
+              <Text style={{ color: '#757575', fontWeight: '500' }}>
+                {isSigningUp ? 'Processing...' : 'Sign up with Google'}
+              </Text>
+            </Button>
+          ) : (
+            <GoogleSigninButton
+              size={GoogleSigninButton.Size.Wide}
+              color={GoogleSigninButton.Color.Dark}
+              onPress={handleGoogleSignup}
+            />
+          )}
 
           {/* Google Sign-In warning */}
           {Platform.OS !== "web" && !isGoogleSignInAvailable && (
