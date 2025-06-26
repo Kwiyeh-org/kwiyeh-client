@@ -1,6 +1,5 @@
 // app/signup-talent.tsx
 
- 
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -33,7 +32,8 @@ import { registerUser } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserRole } from '@/store/authStore';
-import { useAuthStore } from '@/store/authStore'; 
+import { useAuthStore } from '@/store/authStore';
+import { handleGoogleAuth } from '@/services/googleAuthHandler';
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -142,78 +142,13 @@ export default function SignupTalent() {
   };
 
   // Google Sign-In handler for both web and mobile
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignup = async () => {
     try {
       setIsSigningUp(true);
-
-      // --- MOBILE (React Native) ---
-      if (Platform.OS !== "web") {
-        try {
-          await GoogleSignin.signOut();
-        } catch {}
-
-        await GoogleSignin.hasPlayServices();
-        const userInfo = await GoogleSignin.signIn();
-        const { idToken } = await GoogleSignin.getTokens();
-        if (!idToken) throw new Error("No ID token present!");
-
-        // Firebase login
-        const credential = GoogleAuthProvider.credential(idToken);
-        const userCred = await signInWithCredential(auth, credential);
-
-        // Update Zustand store with user info
-        updateUser({
-          id: userCred.user.uid,
-          name: userCred.user.displayName || '',
-          email: userCred.user.email || '',
-          photoURL: userCred.user.photoURL || null,
-          role: 'talent',
-        });
-
-        // Save display name as talentName ONLY if not present
-        const displayName = userCred.user.displayName || "";
-        const existingTalentName = await AsyncStorage.getItem("talentName");
-        if (!existingTalentName || existingTalentName.trim() === "") {
-          await AsyncStorage.setItem("talentName", displayName);
-        }
-        await AsyncStorage.setItem("userId", userCred.user.uid);
-
-        router.replace("/talent/modals/talent-skillForm");
-        return;
-      }
-
-      // --- WEB ---
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      const result = await signInWithPopup(auth, provider);
-
-      // Update Zustand store with user info
-      updateUser({
-        id: result.user.uid,
-        name: result.user.displayName || '',
-        email: result.user.email || '',
-        photoURL: result.user.photoURL || null,
-        role: 'talent',
-      });
-
-      const displayName = result.user.displayName || "";
-      const existingTalentName = await AsyncStorage.getItem("talentName");
-      if (!existingTalentName || existingTalentName.trim() === "") {
-        await AsyncStorage.setItem("talentName", displayName);
-      }
-      await AsyncStorage.setItem("userId", result.user.uid);
-
-      window.location.href = "/talent/modals/talent-skillForm";
+      await handleGoogleAuth('talent');
+      router.push('/talent/modals/talent-skillForm');
     } catch (error: any) {
-      if (Platform.OS !== "web" && error.code === statusCodes.SIGN_IN_CANCELLED) {
-        // user cancelled the login flow
-      } else if (Platform.OS !== "web" && error.code === statusCodes.IN_PROGRESS) {
-        // operation (e.g. sign in) is in progress already
-      } else if (Platform.OS !== "web" && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert("Google Play Services not available.");
-      } else {
-        Alert.alert("Google Sign In Failed", error.message || "Authentication failed");
-      }
+      Alert.alert('Google Signup Failed', error.message || 'Authentication failed');
     } finally {
       setIsSigningUp(false);
     }
@@ -478,52 +413,16 @@ export default function SignupTalent() {
           </View>
 
           {/* Google Sign-In */}
-          {Platform.OS === "web" ? (
-            <Button
-              className="bg-white border border-gray-300 rounded-full py-3 flex-row justify-center items-center mb-4"
-              onPress={handleGoogleSignIn}
-              disabled={isSigningUp}
-              accessibilityLabel="Sign up with Google"
-            >
-              <View style={styles.googleButtonContent}>
-                <View style={styles.googleIconContainer}>
-                  {/* SVG Google Icon here */}
-                  <svg
-                    width="18"
-                    height="18"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 48 48"
-                  >
-                    <path
-                      fill="#EA4335"
-                      d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-                    />
-                  </svg>
-                </View>
-                <Text style={styles.googleButtonText}>
-                  {isSigningUp ? "Processing..." : "Sign up with Google"}
-                </Text>
-              </View>
-            </Button>
-          ) : (
-            <GoogleSigninButton
-              size={GoogleSigninButton.Size.Wide}
-              color={GoogleSigninButton.Color.Dark}
-              onPress={handleGoogleSignIn}
-            />
-          )}
+          <Button
+            className="bg-white border border-gray-300 rounded-full py-3 flex-row justify-center items-center mb-4"
+            onPress={handleGoogleSignup}
+            disabled={isSigningUp}
+            accessibilityLabel="Sign up with Google"
+          >
+            <Text style={{ color: '#757575', fontWeight: '500' }}>
+              {isSigningUp ? 'Processing...' : 'Sign up with Google'}
+            </Text>
+          </Button>
 
           {/* Google Sign-In warning */}
           {Platform.OS !== "web" && !isGoogleSignInAvailable && (
@@ -560,9 +459,6 @@ type Styles = {
   divider: ViewStyle;
   dividerLine: ViewStyle;
   dividerText: TextStyle;
-  googleButtonContent: ViewStyle;
-  googleIconContainer: ViewStyle;
-  googleButtonText: TextStyle;
 };
 
 // StyleSheet with responsive values and platform-specific styles
@@ -661,18 +557,5 @@ const styles = StyleSheet.create<Styles>({
     marginHorizontal: 16,
     color: "black",
     opacity: 0.5,
-  },
-  googleButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  googleIconContainer: {
-    marginRight: 8,
-  },
-  googleButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#757575",
   },
 });

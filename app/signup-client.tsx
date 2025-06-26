@@ -41,6 +41,7 @@ import { signInWithGoogleMobile } from "@/services/firebase";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserRole } from '@/store/authStore';
+import { handleGoogleAuth } from '@/services/googleAuthHandler';
 
 
 
@@ -164,74 +165,13 @@ updateUser(userData)
   };
 
   // Google Sign-In handler for both web and mobile
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignup = async () => {
     try {
       setIsSigningUp(true);
-
-      // Sign out first to clear previous session and force account picker
-      if (Platform.OS !== "web") {
-        try {
-          // Just sign out to clear any existing sessions - skip checking if signed in
-          await GoogleSignin.signOut();
-          console.log("Successfully signed out from previous Google session");
-        } catch (error) {
-          console.log("Error signing out:", error);
-          // Continue with sign-in process even if sign-out fails
-        }
-      }
-
-      // Check if Google Sign-In is available on mobile
-      if (Platform.OS !== "web" && !isGoogleSignInAvailable) {
-        throw new Error(
-          "Google Sign-In is not available on this device. Please sign up with email and password instead."
-        );
-      }
-
-      // --- MOBILE (React Native) ---
-      if (Platform.OS !== "web") {
-        // Proceed with sign-in
-        await GoogleSignin.hasPlayServices();
-        const userInfo = await GoogleSignin.signIn();
-        console.log("User Info: ", userInfo?.data?.user, user);
-        
-        // ✂️ This is the key fix: explicitly fetch tokens (including idToken)
-        const { idToken } = await GoogleSignin.getTokens();
-        if (!idToken) throw new Error("No ID token present!");
-        
-        // Exchange it for a Firebase credential
-        const credential = GoogleAuthProvider.credential(idToken);
-        const userCred = await signInWithCredential(auth, credential);
-        console.log("Firebase user:", userCred.user);
-        
-        updateUser({
-          id: userCred.user.uid,
-          name: userCred.user.displayName || '',
-          email: userCred.user.email || '',
-          photoURL: userCred.user.photoURL || null,
-          role: 'client',
-        });
-        router.replace("/client");
-        return;
-      }
-
-      // --- WEB ---
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      updateUser({
-        id: result.user.uid,
-        name: result.user.displayName || '',
-        email: result.user.email || '',
-        photoURL: result.user.photoURL || null,
-        role: 'client',
-      });
-      window.location.href = "/client";
-
+      await handleGoogleAuth('client');
+      router.push('/client');
     } catch (error: any) {
-      console.error("Google Sign In error:", error);
-      Alert.alert(
-        "Google Sign In Failed",
-        error.message || "Authentication failed"
-      );
+      Alert.alert('Google Signup Failed', error.message || 'Authentication failed');
     } finally {
       setIsSigningUp(false);
     }
@@ -513,47 +453,20 @@ updateUser(userData)
             /* Web Google Sign-In Button */
             <Button
               className="bg-white border border-gray-300 rounded-full py-3 flex-row justify-center items-center mb-4"
-              onPress={handleGoogleSignIn}
+              onPress={handleGoogleSignup}
               disabled={isSigningUp}
               accessibilityLabel="Sign up with Google"
             >
-              <View style={styles.googleButtonContent}>
-                <View style={styles.googleIconContainer}>
-                  <svg
-                    width="18"
-                    height="18"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 48 48"
-                  >
-                    <path
-                      fill="#EA4335"
-                      d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-                    />
-                  </svg>
-                </View>
-                <Text style={styles.googleButtonText}>
-                  {isSigningUp ? "Processing..." : "Sign up with Google"}
-                </Text>
-              </View>
+              <Text style={{ color: '#757575', fontWeight: '500' }}>
+                {isSigningUp ? 'Processing...' : 'Sign up with Google'}
+              </Text>
             </Button>
           ) : (
             /* Mobile Google Sign-In Button */
             <GoogleSigninButton
               size={GoogleSigninButton.Size.Wide}
               color={GoogleSigninButton.Color.Dark}
-              onPress={handleGoogleSignIn}
+              onPress={handleGoogleSignup}
             />
           )}
 

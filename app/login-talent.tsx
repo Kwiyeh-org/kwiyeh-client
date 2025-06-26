@@ -1,6 +1,4 @@
- // app/login-talent.tsx
-
- // app/login-talent.tsx
+// app/login-talent.tsx
 
 import React, { useState } from "react";
 import {
@@ -24,6 +22,7 @@ import { Formik } from "formik";
 import * as Yup from "yup";
 import { loginUser } from "~/services/firebase";
 import { useAuthStore } from '@/store/authStore';
+import { handleGoogleAuth } from '@/services/googleAuthHandler';
 
 // Validation schema
 const LoginSchema = Yup.object().shape({
@@ -105,6 +104,18 @@ export default function Login() {
   const handleForgotPassword = () => {
     // Navigate to the talent-forgot-password page
     router.push("/talent-forget-password");
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoggingIn(true);
+      await handleGoogleAuth('talent');
+      router.push('/talent');
+    } catch (error: any) {
+      Alert.alert('Google Login Failed', error.message || 'Authentication failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   // Background image based on platform
@@ -243,6 +254,24 @@ export default function Login() {
                     {isLoggingIn ? "Logging in..." : "Login"}
                   </Text>
                 </Button>
+
+                {/* Divider */}
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <Button
+                  className="bg-white border border-gray-300 rounded-full py-3 flex-row justify-center items-center mb-4"
+                  onPress={handleGoogleLogin}
+                  disabled={isLoggingIn}
+                  accessibilityLabel="Sign in with Google"
+                >
+                  <Text style={{ color: '#757575', fontWeight: '500' }}>
+                    {isLoggingIn ? 'Processing...' : 'Sign in with Google'}
+                  </Text>
+                </Button>
               </>
             )}
           </Formik>
@@ -289,6 +318,9 @@ type Styles = {
   createAccountText: TextStyle;
   linkText: TextStyle;
   webLinkText: TextStyle;
+  divider: ViewStyle;
+  dividerLine: ViewStyle;
+  dividerText: TextStyle;
 }
 
 // StyleSheet with responsive values and platform-specific styles
@@ -365,5 +397,19 @@ const styles = StyleSheet.create<Styles>({
   webLinkText: {
     textDecorationLine: "none",
     cursor: "pointer",
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#757575",
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: "#757575",
   },
 });
