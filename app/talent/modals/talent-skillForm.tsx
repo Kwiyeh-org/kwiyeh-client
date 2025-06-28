@@ -1,7 +1,7 @@
 // // app/talent/modals/talent-skillForm.tsx
 // //it's moved here to solve routing issues  that's how expo routing works
 
- import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -17,9 +17,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list"; // <--- Use your constants file
+import { useAuthStore } from '@/store/authStore';
 
 export default function TalentSkillForm() {
   const router = useRouter();
+  const updateProfile = useAuthStore((state) => state.updateProfile);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [experience, setExperience] = useState("");
   const [pricing, setPricing] = useState("");
@@ -34,12 +36,12 @@ export default function TalentSkillForm() {
 
   const handleSubmit = async () => {
     try {
-      await AsyncStorage.multiSet([
-        ["talentServices", JSON.stringify(selectedServices)], // Store as JSON array
-        ["talentExperience", experience],
-        ["talentPricing", pricing],
-        ["talentAvailability", availability],
-      ]);
+      updateProfile({
+        services: selectedServices,
+        experience,
+        pricing,
+        availability,
+      });
       router.replace("/talent");
     } catch (error) {
       Alert.alert("Error", "Failed to save profile data");

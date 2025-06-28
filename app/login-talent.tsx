@@ -102,7 +102,7 @@ export default function Login() {
   };
 
   const handleForgotPassword = () => {
-    // Navigate to the talent-forgot-password page
+    // Navigate to the talent-forget-password page
     router.push("/talent-forget-password");
   };
 

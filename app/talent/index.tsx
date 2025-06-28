@@ -1,6 +1,5 @@
- // app/talent/index.tsx(talent-dashboard.tsx)
+// app/talent/index.tsx(talent-dashboard.tsx)
 
-  
 import React, { useState } from 'react';
 import {
   View,
@@ -13,7 +12,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { FontAwesome, Feather } from '@expo/vector-icons';
+import { FontAwesome, Feather, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
 
@@ -32,11 +31,58 @@ export default function TalentDashboard() {
   const userName = user?.name || 'Talent';
   const profileImage = user?.photoURL || null;
   
-  // Mock profile completion - you can replace this with actual store data
-  const [profileCompletion] = useState(75); // Replace with actual calculation from store
+  // Dynamic profile completion calculation
+  const profileFields = [
+    user?.name,
+    user?.photoURL,
+    user?.location?.address,
+    user?.services && user.services.length > 0,
+    user?.pricing,
+    user?.availability,
+    user?.experience,
+    typeof user?.isMobile === 'boolean',
+  ];
+  const filledFields = profileFields.filter(Boolean).length;
+  const profileCompletion = Math.round((filledFields / profileFields.length) * 100);
 
   const isWeb = Platform.OS === 'web';
-  const headerHeight = isWeb ? Math.min(180, height * 0.25) : 180;
+  const headerHeight = isWeb ? Math.min(220, height * 0.3) : 220; // Increased height
+
+  // Mock data for today's schedule
+  const todaysSchedule = [
+    {
+      id: 1,
+      clientName: 'John Doe',
+      service: 'House Cleaning',
+      time: '10:00 AM',
+      status: 'confirmed'
+    },
+    {
+      id: 2,
+      clientName: 'Jane Smith',
+      service: 'Garden Maintenance',
+      time: '2:00 PM',
+      status: 'pending'
+    }
+  ];
+
+  // Mock data for recent reviews
+  const recentReviews = [
+    {
+      id: 1,
+      clientName: 'Alice Johnson',
+      rating: 5,
+      comment: 'Excellent service! Very professional and thorough.',
+      date: '2 days ago'
+    },
+    {
+      id: 2,
+      clientName: 'Bob Wilson',
+      rating: 4,
+      comment: 'Great work, would definitely recommend.',
+      date: '1 week ago'
+    }
+  ];
 
   // Content for each tab
   const renderTabContent = () => {
@@ -59,17 +105,61 @@ export default function TalentDashboard() {
                 {profileCompletion}% Complete
               </Text>
             </View>
+
             {/* Today's Schedule */}
             <View style={styles.scheduleContainer}>
               <Text style={styles.sectionTitle}>Today's Schedule</Text>
-              <Text style={styles.placeholderText}>
-                No appointments scheduled for today
-              </Text>
+              {todaysSchedule.length > 0 ? (
+                todaysSchedule.map((appointment) => (
+                  <View key={appointment.id} style={styles.scheduleItem}>
+                    <View style={styles.scheduleInfo}>
+                      <Text style={styles.clientName}>{appointment.clientName}</Text>
+                      <Text style={styles.serviceName}>{appointment.service}</Text>
+                      <Text style={styles.appointmentTime}>{appointment.time}</Text>
+                    </View>
+                    <View style={[
+                      styles.statusBadge,
+                      appointment.status === 'confirmed' ? styles.confirmedBadge : styles.pendingBadge
+                    ]}>
+                      <Text style={styles.statusText}>
+                        {appointment.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.placeholderText}>
+                  No appointments scheduled for today
+                </Text>
+              )}
             </View>
+
             {/* Recent Reviews */}
             <View style={styles.reviewsContainer}>
               <Text style={styles.sectionTitle}>Recent Reviews</Text>
-              <Text style={styles.placeholderText}>No reviews yet</Text>
+              {recentReviews.length > 0 ? (
+                recentReviews.map((review) => (
+                  <View key={review.id} style={styles.reviewItem}>
+                    <View style={styles.reviewHeader}>
+                      <Text style={styles.reviewClientName}>{review.clientName}</Text>
+                      <View style={styles.ratingContainer}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Ionicons
+                            key={star}
+                            name={star <= review.rating ? "star" : "star-outline"}
+                            size={16}
+                            color={star <= review.rating ? "#FFD700" : "#D1D5DB"}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={styles.reviewComment}>{review.comment}</Text>
+                    <Text style={styles.reviewDate}>{review.date}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.placeholderText}>No reviews yet</Text>
+              )}
             </View>
           </View>
         );
@@ -95,6 +185,13 @@ export default function TalentDashboard() {
       >
         {/* Green Header */}
         <View style={[styles.headerContainer, { height: headerHeight }]}>
+          <TouchableOpacity
+            style={[styles.helpIcon, { top: isWeb ? 20 : 40 }]}
+            onPress={() => router.push("/talent/help")}
+            accessibilityLabel="Get Help"
+          >
+            <Ionicons name="help-circle" size={24} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.settingsIcon, { top: isWeb ? 20 : 40 }]}
             onPress={() => router.push("/talent/settings")}
@@ -166,10 +263,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     ...Platform.select({
       web: {
-        minHeight: 150,
-        maxHeight: 180,
+        minHeight: 180,
+        maxHeight: 220,
       },
     }),
+  },
+  helpIcon: {
+    position: "absolute",
+    right: 64, // Positioned to the left of settings icon
+    zIndex: 2,
   },
   settingsIcon: {
     position: "absolute",
@@ -277,8 +379,80 @@ const styles = StyleSheet.create({
   scheduleContainer: {
     marginBottom: 24,
   },
+  scheduleItem: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  scheduleInfo: {
+    flex: 1,
+  },
+  clientName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+    marginBottom: 4,
+  },
+  serviceName: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 2,
+  },
+  appointmentTime: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  confirmedBadge: {
+    backgroundColor: "#D1FAE5",
+  },
+  pendingBadge: {
+    backgroundColor: "#FEF3C7",
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
   reviewsContainer: {
     marginBottom: 24,
+  },
+  reviewItem: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  reviewClientName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+  ratingContainer: {
+    flexDirection: "row",
+  },
+  reviewComment: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  reviewDate: {
+    fontSize: 12,
+    color: "#6B7280",
   },
   placeholderText: {
     color: "#666",

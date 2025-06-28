@@ -1,8 +1,9 @@
 //store/authStore.ts
 
- import { create } from 'zustand';
+import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 export type UserRole = 'client' | 'talent';
 
@@ -22,6 +23,7 @@ export interface User {
   pricing?: string;
   availability?: string;
   isMobile?: boolean;
+  experience?: string;
 }
 
 interface AuthState {
@@ -31,6 +33,7 @@ interface AuthState {
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
   deleteAccount: () => void;
+  updateUserInfo: (updates: Partial<User>) => Promise<boolean>;
 }
 
 // --- Universal storage updater ---
@@ -67,9 +70,165 @@ export const useAuthStore = create<AuthState>()(
           return { user: newUser };
         });
       },
-      deleteAccount: () => {
-        set({ user: null, isAuthenticated: false });
-        saveToStorage(null);
+      deleteAccount: async () => {
+        try {
+          const user = get().user;
+          if (user) {
+            const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
+              ? 'http://localhost:8080/deleteAccount'
+              : 'http://192.168.103.33:8080/deleteAccount';
+            
+            // Get auth token
+            let token = null;
+            if (typeof window !== "undefined" && window.localStorage) {
+              token = localStorage.getItem('idToken');
+            } else {
+              token = await AsyncStorage.getItem('idToken');
+            }
+            
+            // Try with user ID in URL parameters instead of body
+            const urlWithParams = `${url}?userId=${encodeURIComponent(user.id)}`;
+            
+            console.log('Attempting to delete account:', { url: urlWithParams });
+            
+            // Call backend endpoint with timeout and auth header
+            const response = await axios.delete(urlWithParams, {
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+              },
+              timeout: 10000, // 10 second timeout
+            });
+            
+            console.log('Delete account response:', response.data);
+          }
+        } catch (err: any) {
+          // Log detailed error information
+          console.error('Failed to delete account from backend:', {
+            message: err.message,
+            status: err.response?.status,
+            statusText: err.response?.statusText,
+            data: err.response?.data,
+            config: {
+              url: err.config?.url,
+              method: err.config?.method,
+              data: err.config?.data,
+            }
+          });
+          
+          // If it's a network error, try with empty body
+          if (err.message === 'Network Error' || err.code === 'ERR_FAILED') {
+            console.log('Trying delete with empty body...');
+            try {
+              const user = get().user;
+              if (user) {
+                const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
+                  ? 'http://localhost:8080/deleteAccount'
+                  : 'http://192.168.103.33:8080/deleteAccount';
+                
+                // Get auth token
+                let token = null;
+                if (typeof window !== "undefined" && window.localStorage) {
+                  token = localStorage.getItem('idToken');
+                } else {
+                  token = await AsyncStorage.getItem('idToken');
+                }
+                
+                const response = await axios.delete(url, {
+                  headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
+                  },
+                  timeout: 10000,
+                });
+                console.log('Delete account response (empty body):', response.data);
+              }
+            } catch (retryErr: any) {
+              console.error('Retry also failed:', retryErr.message);
+            }
+          }
+        } finally {
+          set({ user: null, isAuthenticated: false });
+          saveToStorage(null);
+        }
+      },
+      updateUserInfo: async (updates: Partial<User>) => {
+        try {
+          const user = get().user;
+          if (!user) return false;
+
+          const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
+            ? 'http://localhost:8080/updateUserInfo'
+            : 'http://192.168.103.33:8080/updateUserInfo';
+
+          // Get auth token
+          let token = null;
+          if (typeof window !== "undefined" && window.localStorage) {
+            token = localStorage.getItem('idToken');
+          } else {
+            token = await AsyncStorage.getItem('idToken');
+          }
+
+          // Prepare payload based on user role - full structure
+          let payload: any;
+          
+          if (user.role === 'client') {
+            payload = {
+              uid: user.id,
+              email: updates.email || user.email || '',
+              fullName: updates.name || user.name || '',
+              password: "",
+              phoneNumber: updates.phoneNumber || user.phoneNumber || '',
+              role: user.role,
+              clientImageUrl: updates.photoURL || user.photoURL || "",
+              location: updates.location || user.location || null
+            };
+          } else if (user.role === 'talent') {
+            payload = {
+              uid: user.id,
+              email: updates.email || user.email || '',
+              fullName: updates.name || user.name || '',
+              password: "",
+              phoneNumber: updates.phoneNumber || user.phoneNumber || '',
+              role: user.role,
+              talentName: updates.name || user.name || '',
+              talentDescription: updates.experience || user.experience || '',
+              talentCategory: updates.services ? updates.services.join(", ") : (user.services ? user.services.join(", ") : ""),
+              talentImageUrl: updates.photoURL || user.photoURL || "",
+              pricing: updates.pricing || user.pricing || '',
+              availability: updates.availability || user.availability || '',
+              location: updates.location || user.location || null
+            };
+          }
+
+          console.log('Updating user info:', { url, payload });
+
+          const response = await axios.post(url, payload, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            timeout: 10000,
+          });
+
+          console.log('Update user info response:', response.data);
+
+          // If backend update successful, update local store
+          if (response.status === 200) {
+            const updatedUser = { ...user, ...updates };
+            set({ user: updatedUser });
+            saveToStorage(updatedUser);
+            return true;
+          }
+
+          return false;
+        } catch (err: any) {
+          console.error('Failed to update user info:', {
+            message: err.message,
+            status: err.response?.status,
+            data: err.response?.data,
+          });
+          return false;
+        }
       },
     }),
     {

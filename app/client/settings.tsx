@@ -1,4 +1,4 @@
- // app/client/settings.tsx
+// app/client/settings.tsx
 
 import React, { useState } from "react";
 import {
@@ -23,9 +23,11 @@ import type { User } from '@/store/authStore';
 
 export default function ClientSettings() {
   const router = useRouter();
-  const { user, updateProfile, logout, deleteAccount } = useAuthStore();
+  const { user, updateUserInfo, logout, deleteAccount } = useAuthStore();
 
   const [fullName, setFullName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [profileImage, setProfileImage] = useState(user?.photoURL || null);
   const [location, setLocation] = useState<User['location'] | undefined>(user?.location);
   const [isSaving, setIsSaving] = useState(false);
@@ -54,14 +56,35 @@ export default function ClientSettings() {
   };
 
   const saveProfile = async () => {
+    if (!fullName.trim()) {
+      Alert.alert('Error', 'Please enter your full name');
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email');
+      return;
+    }
+    
     setIsSaving(true);
-    await updateProfile({
-      name: fullName,
-      photoURL: profileImage ?? undefined,
-      location,
-    });
-    setIsSaving(false);
-    Alert.alert('Success', 'Profile updated!');
+    try {
+      const success = await updateUserInfo({
+        name: fullName,
+        email: email,
+        phoneNumber: phoneNumber,
+        photoURL: profileImage ?? undefined,
+        location,
+      });
+      
+      if (success) {
+        Alert.alert('Success', 'Profile updated successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleLogout = () => {
@@ -107,6 +130,27 @@ export default function ClientSettings() {
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Your full name"
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email</Text>
+              <Input
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Your email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Phone Number</Text>
+              <Input
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                placeholder="Your phone number"
+                keyboardType="phone-pad"
                 style={styles.input}
               />
             </View>

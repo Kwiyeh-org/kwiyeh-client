@@ -134,7 +134,7 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
-          name="talent-forgot-password"
+          name="talent-forget-password"
           options={{
             title: "talent forgot password",
             headerShown: false,

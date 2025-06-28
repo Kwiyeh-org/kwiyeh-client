@@ -1,4 +1,4 @@
- //app/talent/settings.tsx
+//app/talent/settings.tsx
 
 import React, { useState } from 'react';
 import {
@@ -28,9 +28,11 @@ import type { User } from '@/store/authStore';
 
 export default function TalentSettings() {
   const router = useRouter();
-  const { user, updateProfile, logout, deleteAccount } = useAuthStore();
+  const { user, updateUserInfo, logout, deleteAccount } = useAuthStore();
 
   const [fullName, setFullName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [profileImage, setProfileImage] = useState<string | null>(user?.photoURL || null);
   const [location, setLocation] = useState<User['location'] | undefined>(user?.location);
   const [selectedServices, setSelectedServices] = useState<string[]>(user?.services || []);
@@ -38,6 +40,7 @@ export default function TalentSettings() {
   const [availability, setAvailability] = useState(user?.availability || '');
   const [isMobile, setIsMobile] = useState(user?.isMobile || false);
   const [isLoading, setIsLoading] = useState(false);
+  const [experience, setExperience] = useState(user?.experience || '');
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -64,59 +67,68 @@ export default function TalentSettings() {
       Alert.alert('Error', 'Please enter your full name');
       return;
     }
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email');
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      await updateProfile({
+      const success = await updateUserInfo({
         name: fullName,
+        email: email,
+        phoneNumber: phoneNumber,
         photoURL: profileImage,
         location,
         services: selectedServices,
         pricing,
         availability,
         isMobile,
+        experience,
       });
-      Alert.alert('Success', 'Profile updated successfully!');
-    } catch {
+      
+      if (success) {
+        Alert.alert('Success', 'Profile updated successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+      }
+    } catch (error) {
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Helper for confirmation
+  const confirmAction = (title: string, message: string, onConfirm: () => void) => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'OK', style: 'destructive', onPress: onConfirm },
+    ]);
+  };
+
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            logout();
-            router.replace('/login-talent');
-          }
-        }
-      ]
-    );
+    if (Platform.OS === 'web') {
+      logout();
+      router.replace('/login-talent');
+    } else {
+      confirmAction('Logout', 'Are you sure you want to logout?', async () => {
+        await logout();
+        router.replace('/login-talent');
+      });
+    }
   };
 
   const handleAccountDeletion = () => {
-    Alert.alert(
-      'Delete Account',
-      'This action cannot be undone. Are you sure you want to delete your account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteAccount();
-            router.replace('/signup-talent');
-          }
-        }
-      ]
-    );
+    if (Platform.OS === 'web') {
+      deleteAccount();
+      router.replace('/signup-talent');
+    } else {
+      confirmAction('Delete Account', 'This action cannot be undone. Are you sure you want to delete your account?', async () => {
+        await deleteAccount();
+        router.replace('/signup-talent');
+      });
+    }
   };
 
   return (
@@ -156,6 +168,27 @@ export default function TalentSettings() {
               value={fullName}
               onChangeText={setFullName}
               placeholder="Enter your full name"
+            />
+          </View>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.textInput}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <TextInput
+              style={styles.textInput}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder="Enter your phone number"
+              keyboardType="phone-pad"
             />
           </View>
         </View>
@@ -240,6 +273,21 @@ export default function TalentSettings() {
               value={availability}
               onChangeText={setAvailability}
               placeholder="e.g., Mon-Fri 9AM-5PM, Weekends available"
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+        </View>
+        {/* Experience */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Experience</Text>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Experience</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              value={experience}
+              onChangeText={setExperience}
+              placeholder="e.g., 5 years in professional makeup"
               multiline
               numberOfLines={3}
             />
