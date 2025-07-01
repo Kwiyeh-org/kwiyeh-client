@@ -1,4 +1,4 @@
- //app/client-reset-password.tsx
+//app/client-reset-password.tsx
 
 import React, { useState } from "react";
 import {
@@ -21,7 +21,7 @@ import Entypo from "@expo/vector-icons/Entypo";
 // API Base URL
 const API_BASE_URL = Platform.OS === 'web'
   ? 'http://localhost:8080'
-  : 'http://192.168.103.33:8080';
+  : 'http://192.168.54.33:8080';
 
 // Validation schema
 const PasswordSchema = Yup.object().shape({
@@ -74,7 +74,7 @@ export default function ResetPassword() {
         [
           {
             text: "Login Now",
-            onPress: () => router.push("/client-dashboard")
+            onPress: () => router.push("/client")
           }
         ]
       );

@@ -1,4 +1,4 @@
- //app/talent-forgot-password.tsx
+//app/talent-forgot-password.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -20,7 +20,7 @@ import Entypo from "@expo/vector-icons/Entypo";
 // API Base URL
 const API_BASE_URL = Platform.OS === 'web'
   ? 'http://localhost:8080'
-  : 'http://192.168.103.33:8080';
+  : 'http://192.168.54.33:8080';
 
 // Validation schema
 const EmailSchema = Yup.object().shape({

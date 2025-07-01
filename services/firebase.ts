@@ -21,7 +21,7 @@ WebBrowser.maybeCompleteAuthSession();
 const API_BASE_URL =
   Platform.OS === 'web'
     ? 'http://localhost:8080'
-    : 'http://192.168.103.33:8080';
+    : 'http://192.168.208.33:8080';
 
 /**
  * Helper function to determine role from redirect path

@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { auth } from '../services/firebaseConfig';
 
 export type UserRole = 'client' | 'talent';
 
@@ -73,33 +74,24 @@ export const useAuthStore = create<AuthState>()(
       deleteAccount: async () => {
         try {
           const user = get().user;
-          if (user) {
+          // Always get the latest ID token from Firebase Auth
+          let idToken = null;
+          if (auth.currentUser) {
+            idToken = await auth.currentUser.getIdToken(true);
+          }
+          if (user && idToken) {
             const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
               ? 'http://localhost:8080/deleteAccount'
-              : 'http://192.168.103.33:8080/deleteAccount';
-            
-            // Get auth token
-            let token = null;
-            if (typeof window !== "undefined" && window.localStorage) {
-              token = localStorage.getItem('idToken');
-            } else {
-              token = await AsyncStorage.getItem('idToken');
-            }
-            
-            // Try with user ID in URL parameters instead of body
-            const urlWithParams = `${url}?userId=${encodeURIComponent(user.id)}`;
-            
-            console.log('Attempting to delete account:', { url: urlWithParams });
-            
+              : 'http://192.168.208.33:8080/deleteAccount';
+
             // Call backend endpoint with timeout and auth header
-            const response = await axios.delete(urlWithParams, {
+            const response = await axios.delete(url, {
               headers: {
+                'Authorization': `Bearer ${idToken}`,
                 'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` }),
               },
               timeout: 10000, // 10 second timeout
             });
-            
             console.log('Delete account response:', response.data);
           }
         } catch (err: any) {
@@ -115,37 +107,6 @@ export const useAuthStore = create<AuthState>()(
               data: err.config?.data,
             }
           });
-          
-          // If it's a network error, try with empty body
-          if (err.message === 'Network Error' || err.code === 'ERR_FAILED') {
-            console.log('Trying delete with empty body...');
-            try {
-              const user = get().user;
-              if (user) {
-                const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
-                  ? 'http://localhost:8080/deleteAccount'
-                  : 'http://192.168.103.33:8080/deleteAccount';
-                
-                // Get auth token
-                let token = null;
-                if (typeof window !== "undefined" && window.localStorage) {
-                  token = localStorage.getItem('idToken');
-                } else {
-                  token = await AsyncStorage.getItem('idToken');
-                }
-                
-                const response = await axios.delete(url, {
-                  headers: {
-                    ...(token && { 'Authorization': `Bearer ${token}` }),
-                  },
-                  timeout: 10000,
-                });
-                console.log('Delete account response (empty body):', response.data);
-              }
-            } catch (retryErr: any) {
-              console.error('Retry also failed:', retryErr.message);
-            }
-          }
         } finally {
           set({ user: null, isAuthenticated: false });
           saveToStorage(null);
@@ -158,7 +119,7 @@ export const useAuthStore = create<AuthState>()(
 
           const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
             ? 'http://localhost:8080/updateUserInfo'
-            : 'http://192.168.103.33:8080/updateUserInfo';
+            : 'http://192.168.208.33:8081/updateUserInfo';
 
           // Get auth token
           let token = null;

@@ -119,15 +119,13 @@ export default function TalentSettings() {
     }
   };
 
-  const handleAccountDeletion = () => {
-    if (Platform.OS === 'web') {
-      deleteAccount();
+  const handleAccountDeletion = async () => {
+    try {
+      await deleteAccount();
+      // Zustand is cleared in the store after successful deletion
       router.replace('/signup-talent');
-    } else {
-      confirmAction('Delete Account', 'This action cannot be undone. Are you sure you want to delete your account?', async () => {
-        await deleteAccount();
-        router.replace('/signup-talent');
-      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete account. Please try again.');
     }
   };
 

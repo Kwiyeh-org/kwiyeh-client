@@ -183,6 +183,7 @@ export default function ClientDashboard() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
         <View style={[styles.headerContainer, { height: headerHeight }]}>          
+          <Text style={[styles.appName, { top: isWeb ? 20 : 40 }]}>kwiyeh</Text>
           <TouchableOpacity
             style={[styles.helpIcon, { top: isWeb ? 20 : 40 }]}
             onPress={() => router.push("/client/help")}
@@ -271,6 +272,15 @@ const styles = StyleSheet.create({
         maxHeight: 220,
       },
     }),
+  },
+  appName: {
+    position: 'absolute',
+    left: 20,
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 22,
+    letterSpacing: 1.5,
+    zIndex: 10,
   },
   helpIcon: {
     position: "absolute",

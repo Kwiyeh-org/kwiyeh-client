@@ -92,9 +92,14 @@ export default function ClientSettings() {
     router.replace('/login-client');
   };
 
-  const handleAccountDeletion = () => {
-    deleteAccount();
-    router.replace('/signup-client');
+  const handleAccountDeletion = async () => {
+    try {
+      await deleteAccount();
+      // Zustand is cleared in the store after successful deletion
+      router.replace('/signup-client');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete account. Please try again.');
+    }
   };
 
   return (
