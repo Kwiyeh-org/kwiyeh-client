@@ -29,6 +29,7 @@ import type { UserRole } from '@/store/authStore';
 import { useAuthStore } from '@/store/authStore';
 import { handleGoogleAuth } from '@/services/googleAuthHandler';
 import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
+import { auth } from '@/services/firebaseConfig';
 
 // Validation schema
 const SignupSchema = Yup.object().shape({
@@ -50,7 +51,18 @@ export default function SignupTalent() {
   const router = useRouter();
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [isGoogleSignInAvailable, setIsGoogleSignInAvailable] = useState(true);
-  const { updateUser } = useAuthStore();
+  const { updateUser, isAuthenticated, user } = useAuthStore();
+
+  // Redirect if already authenticated as talent
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'talent') {
+      router.replace('/talent');
+    } else if (isAuthenticated && user?.role === 'client') {
+      // User is authenticated as client, don't let them access talent area
+      Alert.alert('Access Denied', 'You are signed in as a client. Please log out to access talent features.');
+      router.replace('/client');
+    }
+  }, [isAuthenticated, user?.role]);
 
   // Only configure GoogleSignin on mobile
   if (Platform.OS !== 'web') {
@@ -95,7 +107,7 @@ export default function SignupTalent() {
       setIsSigningUp(true);
       const formattedPhone = `${selectedCountry.dial_code}${values.phoneNumber}`;
 
-      await registerUser({
+      const response = await registerUser({
         fullName: values.fullName,
         email: values.email,
         phoneNumber: formattedPhone,
@@ -103,20 +115,56 @@ export default function SignupTalent() {
         role: 'talent',
       });
 
-      const userId = await AsyncStorage.getItem('userId');
+      // Extract Firebase UID from backend
+      const userId = response.uid || response.localId;
+      if (!userId) {
+        throw new Error('No user ID received from server');
+      }
 
       // Update Zustand store with user data
       updateUser({
-        id: userId!,
-        name: values.fullName,
-        email: values.email,
-        photoURL: null,
-        role: 'talent' as UserRole,
-        phoneNumber: formattedPhone,
+        id: userId, // Use Firebase UID from backend
+        name: response.fullName || response.displayName || response.name || values.fullName,
+        email: response.email,
+        photoURL: response.photoURL || null,
+        role: response.role || 'talent',
+        phoneNumber: response.phoneNumber || '',
+        location: response.location || null,
       });
       
       console.log("User data updated in store");
-      router.push("/talent/modals/talent-skillForm");
+      
+      // Validate UID consistency after signup
+      try {
+        const { validateUIDConsistency } = require('@/services/firebase');
+        await validateUIDConsistency();
+      } catch (validationError) {
+        console.warn('[signup-talent] UID validation failed:', validationError);
+      }
+      
+      // === STORE idToken for protected requests ===
+      if (Platform.OS === 'web') {
+        if (response.idToken) {
+          localStorage.setItem('idToken', response.idToken);
+          console.log('[signup-talent] idToken stored in localStorage:', response.idToken);
+        } else if (auth.currentUser) {
+          const idToken = await auth.currentUser.getIdToken(true);
+          localStorage.setItem('idToken', idToken);
+          console.log('[signup-talent] idToken stored in localStorage (from auth):', idToken);
+        }
+      } else {
+        if (response.idToken) {
+          await AsyncStorage.setItem('idToken', response.idToken);
+          console.log('[signup-talent] idToken stored in AsyncStorage:', response.idToken);
+        } else if (auth.currentUser) {
+          const idToken = await auth.currentUser.getIdToken(true);
+          await AsyncStorage.setItem('idToken', idToken);
+          console.log('[signup-talent] idToken stored in AsyncStorage (from auth):', idToken);
+        }
+      }
+      // === END idToken storage ===
+      
+      router.replace("/talent/modals/talent-skillForm");
       
     } catch (error: any) {
       if (error.message === "Email already in use") {
@@ -145,9 +193,18 @@ export default function SignupTalent() {
     try {
       setIsSigningUp(true);
       const result = await handleGoogleAuth('talent');
-      if (result.success && result.user) {
+      if (result && result.success && result.user) {
         updateUser(result.user); // Ensure sync
-        router.push('/talent/modals/talent-skillForm');
+        
+        // Validate UID consistency after Google signup
+        try {
+          const { validateUIDConsistency } = require('@/services/firebase');
+          await validateUIDConsistency();
+        } catch (validationError) {
+          console.warn('[signup-talent-google] UID validation failed:', validationError);
+        }
+        
+        router.replace('/talent/modals/talent-skillForm');
       } else {
         Alert.alert('Google Signup Failed', 'Could not authenticate user.');
       }

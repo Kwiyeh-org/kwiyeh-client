@@ -1,6 +1,6 @@
 //app/talent/settings.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,11 +25,13 @@ import { SERVICES_CATEGORIES } from '~/constants/skill-list';
 import { useAuthStore } from '@/store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import type { User } from '@/store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function TalentSettings() {
   const router = useRouter();
-  const { user, updateUserInfo, logout, deleteAccount } = useAuthStore();
+  const { user, updateUserInfo, logout, deleteAccount, isAuthenticated } = useAuthStore();
 
+  // All hooks at the top!
   const [fullName, setFullName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
@@ -41,6 +43,28 @@ export default function TalentSettings() {
   const [isMobile, setIsMobile] = useState(user?.isMobile || false);
   const [isLoading, setIsLoading] = useState(false);
   const [experience, setExperience] = useState(user?.experience || '');
+
+  useEffect(() => {
+    if (!user || !isAuthenticated || user.role !== 'talent') {
+      router.replace('/');
+    }
+  }, [user, isAuthenticated]);
+
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') {
+        const token = localStorage.getItem('idToken');
+        console.log('[settings-talent] idToken in localStorage (on mount):', token);
+      } else {
+        const token = await AsyncStorage.getItem('idToken');
+        console.log('[settings-talent] idToken in AsyncStorage (on mount):', token);
+      }
+    })();
+  }, []);
+
+  if (!user || !isAuthenticated || user.role !== 'talent') {
+    return null;
+  }
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -62,6 +86,23 @@ export default function TalentSettings() {
     );
   };
 
+  // Helper function to convert image to base64
+  const imageToBase64 = async (uri: string): Promise<string> => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('[imageToBase64] Error:', error);
+      throw error;
+    }
+  };
+
   const saveProfile = async () => {
     if (!fullName.trim()) {
       Alert.alert('Error', 'Please enter your full name');
@@ -71,14 +112,45 @@ export default function TalentSettings() {
       Alert.alert('Error', 'Please enter your email');
       return;
     }
-    
     setIsLoading(true);
     try {
+      let imageData = profileImage;
+      
+      // Convert local image to base64 if it's a file URI
+      if (profileImage && profileImage.startsWith('file')) {
+        console.log('[saveProfile] Converting image to base64');
+        imageData = await imageToBase64(profileImage);
+      }
+      
+      // === LOG idToken before updateUserInfo ===
+      console.log('LOGGING TOKEN NOW');
+      if (Platform.OS === 'web') {
+        const token = localStorage.getItem('idToken');
+        console.log('[settings-talent] idToken in localStorage before update:', token);
+      } else {
+        const token = await AsyncStorage.getItem('idToken');
+        console.log('[settings-talent] idToken in AsyncStorage before update:', token);
+      }
+      // === END LOG ===
+      
+      console.log('[saveProfile] Updating user info:', {
+        name: fullName,
+        email,
+        phoneNumber,
+        photoURL: imageData,
+        location,
+        services: selectedServices,
+        pricing,
+        availability,
+        isMobile,
+        experience,
+      });
+      
       const success = await updateUserInfo({
         name: fullName,
         email: email,
         phoneNumber: phoneNumber,
-        photoURL: profileImage,
+        photoURL: imageData ?? undefined,
         location,
         services: selectedServices,
         pricing,
@@ -93,6 +165,7 @@ export default function TalentSettings() {
         Alert.alert('Error', 'Failed to update profile. Please try again.');
       }
     } catch (error) {
+      console.error('[saveProfile] Error:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
@@ -107,24 +180,28 @@ export default function TalentSettings() {
     ]);
   };
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      logout();
-      router.replace('/login-talent');
-    } else {
-      confirmAction('Logout', 'Are you sure you want to logout?', async () => {
-        await logout();
-        router.replace('/login-talent');
-      });
+  const handleLogout = async () => {
+    try {
+      console.log('[logout] Logging out user', user?.id, user?.role);
+      await AsyncStorage.clear();
+      useAuthStore.getState().resetUser();
+      router.replace('/');
+    } catch (error) {
+      console.error('[logout] Error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };
 
-  const handleAccountDeletion = async () => {
+  const handleDeleteAccount = async () => {
     try {
+      console.log('[deleteAccount] Deleting account for', user?.id, user?.role);
       await deleteAccount();
-      // Zustand is cleared in the store after successful deletion
-      router.replace('/signup-talent');
+      await AsyncStorage.clear();
+      useAuthStore.getState().resetUser();
+      router.replace('/');
+      Alert.alert('Account deleted', 'Your account has been deleted.');
     } catch (error) {
+      console.error('[deleteAccount] Error:', error);
       Alert.alert('Error', 'Failed to delete account. Please try again.');
     }
   };
@@ -326,7 +403,7 @@ export default function TalentSettings() {
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteButton} onPress={handleAccountDeletion}>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
             <Text style={styles.deleteButtonText}>Delete Account</Text>
           </TouchableOpacity>
         </View>

@@ -1,6 +1,6 @@
 // app/login-talent.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import * as Yup from "yup";
 import { loginUser } from "~/services/firebase";
 import { useAuthStore } from '@/store/authStore';
 import { handleGoogleAuth } from '@/services/googleAuthHandler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Validation schema
 const LoginSchema = Yup.object().shape({
@@ -34,8 +35,19 @@ const LoginSchema = Yup.object().shape({
 export default function Login() {
   const router = useRouter();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const { updateUser, user } = useAuthStore();
+  const { updateUser, user, isAuthenticated } = useAuthStore();
   
+  // Redirect if already authenticated as talent
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'talent') {
+      router.replace('/talent');
+    } else if (isAuthenticated && user?.role === 'client') {
+      // User is authenticated as client, don't let them access talent area
+      Alert.alert('Access Denied', 'You are signed in as a client. Please log out to access talent features.');
+      router.replace('/client');
+    }
+  }, [isAuthenticated, user?.role]);
+
   // Platform-specific checkbox component
   const PlatformCheckbox = Platform.OS === "web" ? WebCheckbox : MobileCheckbox;
   console.log(user, "user");
@@ -54,21 +66,56 @@ export default function Login() {
       });
 
       const data = await loginUser(values.email, values.password, 'talent');
+      console.log("[login-talent] loginUser response:", data);
 
+      // Extract Firebase UID from backend response
+      const userId = data.uid || data.localId;
+      if (!userId) {
+        throw new Error('No user ID received from server');
+      }
+      // Store idToken for protected requests
+      if (Platform.OS === 'web') {
+        localStorage.setItem('idToken', data.idToken);
+        console.log('[login] idToken stored in localStorage (web)');
+      } else {
+        await AsyncStorage.setItem('idToken', data.idToken);
+        console.log('[login] idToken stored in AsyncStorage (mobile)');
+      }
       // Update Zustand store with user data
       updateUser({
-        id: data.localId,
-        name: data.name,
+        id: userId, // Use Firebase UID from backend
+        name: data.fullName || data.displayName || data.name || '',
         email: data.email,
         photoURL: data.photoURL || null,
-        role: 'talent',
+        role: data.role || 'talent',
+        phoneNumber: data.phoneNumber || '',
+        location: data.location || null,
+      });
+      console.log('[login-talent] updateUser called with:', {
+        id: userId,
+        name: data.fullName || data.displayName || data.name || '',
+        email: data.email,
+        photoURL: data.photoURL || null,
+        role: data.role || 'talent',
+        phoneNumber: data.phoneNumber || '',
+        location: data.location || null,
       });
 
+      // Validate UID consistency after login
+      try {
+        const { validateUIDConsistency } = require('@/services/firebase');
+        await validateUIDConsistency();
+        console.log('[login-talent] UID consistency validated');
+      } catch (validationError) {
+        console.warn('[login-talent] UID validation failed:', validationError);
+      }
+
       // Navigate to talent dashboard after successful login
-      router.push("/talent");
+      router.replace("/talent");
 
     } catch (error: any) {
       console.error("Login error details:", JSON.stringify(error, null, 2));
+      console.log('[login-talent] Login error:', error);
 
       if (error.response?.status === 401) {
         Alert.alert("Login Failed", "Invalid email or password.");
@@ -93,6 +140,7 @@ export default function Login() {
       console.error("Login error code:", error.code);
     } finally {
       setIsLoggingIn(false);
+      console.log('[login-talent] Login process finished');
     }
   };
 
@@ -109,17 +157,33 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       setIsLoggingIn(true);
+      console.log('[login-talent] Attempting Google login');
       const result = await handleGoogleAuth('talent');
-      if (result.success && result.user) {
+      console.log('[login-talent] Google login result:', result);
+      if (result && result.success && result.user) {
         updateUser(result.user); // Ensure sync
-        router.push('/talent');
+        console.log('[login-talent] updateUser called with Google user:', result.user);
+        
+        // Validate UID consistency after Google login
+        try {
+          const { validateUIDConsistency } = require('@/services/firebase');
+          await validateUIDConsistency();
+          console.log('[login-talent-google] UID consistency validated');
+        } catch (validationError) {
+          console.warn('[login-talent-google] UID validation failed:', validationError);
+        }
+        
+        router.replace('/talent');
       } else {
         Alert.alert('Google Login Failed', 'Could not authenticate user.');
+        console.log('[login-talent] Google login failed: No user in result');
       }
     } catch (error: any) {
       Alert.alert('Google Login Failed', error.message || 'Authentication failed');
+      console.error('[login-talent] Google login error:', error);
     } finally {
       setIsLoggingIn(false);
+      console.log('[login-talent] Google login process finished');
     }
   };
 

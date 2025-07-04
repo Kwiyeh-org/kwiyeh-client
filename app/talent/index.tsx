@@ -1,6 +1,6 @@
 // app/talent/index.tsx(talent-dashboard.tsx)
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ export default function TalentDashboard() {
   const { width, height } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState('community');
   
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const userName = user?.name || 'Talent';
   const profileImage = user?.photoURL || null;
   
@@ -83,6 +83,26 @@ export default function TalentDashboard() {
       date: '1 week ago'
     }
   ];
+
+  // Role-based access control
+  useEffect(() => {
+    if (isAuthenticated && user?.role !== 'talent') {
+      if (user?.role === 'client') {
+        router.replace('/client');
+      } else {
+        // User is authenticated but has no role or invalid role
+        router.replace('/user-type');
+      }
+    } else if (!isAuthenticated) {
+      // Not authenticated, redirect to login
+      router.replace('/login-talent');
+    }
+  }, [isAuthenticated, user?.role]);
+
+  // Don't render anything if not authenticated as talent
+  if (!isAuthenticated || user?.role !== 'talent') {
+    return null;
+  }
 
   // Content for each tab
   const renderTabContent = () => {

@@ -1,7 +1,6 @@
- // app/index.tsx    onboarding screens
+// app/index.tsx    onboarding screens
 
-  
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,10 +12,10 @@ import {
   GestureResponderEvent,
   ViewStyle,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useRootNavigationState } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-
+import { useAuthStore } from '@/store/authStore';
 
 export default function IndexScreen() {
   // ===============================================================
@@ -29,6 +28,20 @@ export default function IndexScreen() {
   const [skipButtonHovered, setSkipButtonHovered] = useState(false);
   const { width, height } = useWindowDimensions();
   const isDesktop = width > 768; // Mobile-first: use flexible breakpoints 
+  const { isAuthenticated, user } = useAuthStore();
+  const rootNavigationState = useRootNavigationState();
+
+  // Redirect authenticated users to their dashboard
+  useEffect(() => {
+    if (!rootNavigationState?.key) return; // Wait until navigation is ready
+    if (isAuthenticated && user?.role) {
+      if (user.role === 'client') {
+        router.replace('/client');
+      } else if (user.role === 'talent') {
+        router.replace('/talent');
+      }
+    }
+  }, [isAuthenticated, user?.role, rootNavigationState?.key]);
 
   // Unified navigation function for all platforms and scenarios
   const navigateToNextScreen = () => {

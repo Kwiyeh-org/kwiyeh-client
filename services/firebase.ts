@@ -96,26 +96,58 @@ export const registerUser = async (userData: {
   password: string;
   role: string;
 }) => {
-  const { data } = await axios.post(
-    `${API_BASE_URL}/signup`,
-    userData
-  );
-  const userId = data.userId ?? data['User created'];
+  console.log('[registerUser] Request:', userData);
+  // Log outgoing request
+  console.log('[registerUser] POST', `${API_BASE_URL}/signup`, { userData });
+  const response = await fetch(`${API_BASE_URL}/signup`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(userData),
+  });
+  console.log('[registerUser] Response status:', response.status);
+  const data = await response.json();
+  console.log('[registerUser] Response data:', data);
+  
+  // Extract Firebase UID from response - backend returns localId
+  const userId = data.localId;
   if (userId) {
+    // Store in AsyncStorage for consistency
     await AsyncStorage.setItem('userId', userId);
+    console.log('[registerUser] Stored Firebase UID:', userId);
+  } else {
+    console.warn('[registerUser] No localId in response:', data);
   }
   return data;
 };
 
 export const loginUser = async (email: string, password: string, role: string) => {
-  const { data } = await axios.post(
-    `${API_BASE_URL}/login`,
-    { email, password, role }
-  );
-  await AsyncStorage.multiSet([
-    ['userId', data.localId],
-    ['idToken', data.idToken],
-  ]);
+  console.log('[loginUser] Request:', { email, role });
+  // Log outgoing request
+  console.log('[loginUser] POST', `${API_BASE_URL}/login`, { email, password, role });
+  const response = await fetch(`${API_BASE_URL}/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password, role }),
+  });
+  console.log('[loginUser] Response status:', response.status);
+  const data = await response.json();
+  console.log('[loginUser] Response data:', data);
+  
+  // Extract Firebase UID from response - backend returns localId
+  const userId = data.localId;
+  if (userId) {
+    await AsyncStorage.multiSet([
+      ['userId', userId],
+      ['idToken', data.idToken],
+    ]);
+    console.log('[loginUser] Stored Firebase UID:', userId);
+  } else {
+    console.warn('[loginUser] No localId in response:', data);
+  }
   return data;
 };
 
@@ -133,6 +165,8 @@ export const signInWithGoogle = async (
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
+      // Log outgoing request
+      console.log('[signInWithGoogle] Firebase popup sign-in');
       const result = await signInWithPopup(auth, provider);
       const userId = result.user.uid;
       await AsyncStorage.setItem('userId', userId);
@@ -159,6 +193,7 @@ export const signInWithGoogle = async (
     }
   } else {
     // Native: use mobile flow
+    console.log('[signInWithGoogle] Mobile Google sign-in');
     return await signInWithGoogleMobile(redirectPath);
   }
 };
@@ -168,4 +203,15 @@ export default {
   loginUser,
   signInWithGoogle,
   signInWithGoogleMobile,
+  validateUIDConsistency: async () => {
+    try {
+      // Import authStore dynamically to avoid circular dependencies
+      const { useAuthStore } = require('@/store/authStore');
+      const validateUID = useAuthStore.getState().validateUID;
+      return await validateUID();
+    } catch (error) {
+      console.error('[validateUIDConsistency] Failed:', error);
+      return false;
+    }
+  },
 };

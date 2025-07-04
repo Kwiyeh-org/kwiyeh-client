@@ -21,7 +21,7 @@ import { useAuthStore } from '@/store/authStore';
 
 export default function TalentSkillForm() {
   const router = useRouter();
-  const updateProfile = useAuthStore((state) => state.updateProfile);
+  const updateUserInfo = useAuthStore((state) => state.updateUserInfo);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [experience, setExperience] = useState("");
   const [pricing, setPricing] = useState("");
@@ -36,13 +36,19 @@ export default function TalentSkillForm() {
 
   const handleSubmit = async () => {
     try {
-      updateProfile({
+      // Log outgoing request
+      console.log('[TalentSkillForm] Submitting skill form:', { selectedServices, experience, pricing, availability });
+      const success = await updateUserInfo({
         services: selectedServices,
         experience,
         pricing,
         availability,
       });
-      router.replace("/talent");
+      if (success) {
+        router.replace("/talent");
+      } else {
+        Alert.alert("Error", "Failed to save profile data. Please try again.");
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to save profile data");
     }

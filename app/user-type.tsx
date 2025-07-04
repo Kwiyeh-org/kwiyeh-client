@@ -1,18 +1,37 @@
- // app/user-type.tsx
+// app/user-type.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, ScrollView, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
+import { useAuthStore } from '@/store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function UserTypeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const [selectedRole, setSelectedRole] = useState<"client" | "talent" | null>(
-    null
-  );
+  const [selectedRole, setSelectedRole] = useState<"client" | "talent" | null>(null);
+  const { isAuthenticated, user } = useAuthStore();
+  const [error, setError] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.role) {
+      
+      if (user.role === 'client') {
+        router.replace('/client');
+      } else if (user.role === 'talent') {
+        router.replace('/talent');
+      }
+    }
+  }, [isAuthenticated, user?.role]);
+
+  // Don't render if already authenticated
+  if (isAuthenticated && user?.role) {
+    return null;
+  }
 
   // Only navigate on the Continue button press
   const handleContinue = () => {
@@ -23,8 +42,44 @@ export default function UserTypeScreen() {
     }
   };
 
+  const handleLogin = (role: 'client' | 'talent') => {
+    if (role === 'client') {
+      router.push("/login-client");
+    } else {
+      router.push("/login-talent");
+    }
+  };
+
   // Use a breakpoint to determine layout
   const isDesktop = width >= 768; // Common tablet/desktop breakpoint
+
+  const handleSave = async () => {
+    try {
+      setError(null);
+      // ...your save logic
+    } catch (e) {
+      setError('Failed to save changes. Please check your network and try again.');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Clear AsyncStorage or Zustand state
+      await AsyncStorage.clear();
+      useAuthStore.getState().resetUser();
+      // Navigate to login screen
+      if (user?.role === 'client') {
+        router.replace('/login-client');
+      } else if (user?.role === 'talent') {
+        router.replace('/login-talent');
+      } else {
+        router.replace('/user-type');
+      }
+    } catch (e) {
+      // Even if error, force navigation
+      router.replace('/user-type');
+    }
+  };
 
   return (
     <ScrollView className="flex-1 bg-[#E6FF79]">
@@ -128,7 +183,7 @@ export default function UserTypeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View className="mt-12">
+        <View className="mt-12 space-y-4">
           <Button
             className="bg-green-800 py-6 rounded-full max-w-md mx-auto w-full"
             disabled={!selectedRole}
@@ -137,6 +192,8 @@ export default function UserTypeScreen() {
             <Text className="text-white text-xl font-semibold">Continue</Text>
           </Button>
         </View>
+
+        {error && <Text style={{ color: 'red' }}>{error}</Text>}
       </View>
     </ScrollView>
   );

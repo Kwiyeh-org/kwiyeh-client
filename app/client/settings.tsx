@@ -1,6 +1,6 @@
 // app/client/settings.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,17 +20,41 @@ import { FontAwesome, Feather, MaterialCommunityIcons } from "@expo/vector-icons
 import LocationField from '~/components/LocationField';
 import { useAuthStore } from '@/store/authStore';
 import type { User } from '@/store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ClientSettings() {
   const router = useRouter();
-  const { user, updateUserInfo, logout, deleteAccount } = useAuthStore();
+  const { user, updateUserInfo, logout, deleteAccount, isAuthenticated } = useAuthStore();
 
+  // All hooks at the top!
   const [fullName, setFullName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [profileImage, setProfileImage] = useState(user?.photoURL || null);
   const [location, setLocation] = useState<User['location'] | undefined>(user?.location);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user || !isAuthenticated || user.role !== 'client') {
+      router.replace('/');
+    }
+  }, [user, isAuthenticated]);
+
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') {
+        const token = localStorage.getItem('idToken');
+        console.log('[settings-client] idToken in localStorage (on mount):', token);
+      } else {
+        const token = await AsyncStorage.getItem('idToken');
+        console.log('[settings-client] idToken in AsyncStorage (on mount):', token);
+      }
+    })();
+  }, []);
+
+  if (!user || !isAuthenticated || user.role !== 'client') {
+    return null;
+  }
 
   const pickImage = async () => {
     try {
@@ -55,6 +79,23 @@ export default function ClientSettings() {
     }
   };
 
+  // Helper function to convert image to base64
+  const imageToBase64 = async (uri: string): Promise<string> => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('[imageToBase64] Error:', error);
+      throw error;
+    }
+  };
+
   const saveProfile = async () => {
     if (!fullName.trim()) {
       Alert.alert('Error', 'Please enter your full name');
@@ -64,16 +105,44 @@ export default function ClientSettings() {
       Alert.alert('Error', 'Please enter your email');
       return;
     }
-    
     setIsSaving(true);
     try {
+      let imageData = profileImage;
+      
+      // Convert local image to base64 if it's a file URI
+      if (profileImage && profileImage.startsWith('file')) {
+        console.log('[saveProfile] Converting image to base64');
+        imageData = await imageToBase64(profileImage);
+      }
+      
+      // === LOG idToken before updateUserInfo ===
+      console.log('LOGGING TOKEN NOW');
+      if (Platform.OS === 'web') {
+        const token = localStorage.getItem('idToken');
+        console.log('[settings-client] idToken in localStorage before update:', token);
+      } else {
+        const token = await AsyncStorage.getItem('idToken');
+        console.log('[settings-client] idToken in AsyncStorage before update:', token);
+      }
+      // === END LOG ===
+      
+      console.log('[saveProfile] Updating user info:', {
+        name: fullName,
+        email,
+        phoneNumber,
+        photoURL: imageData,
+        location,
+      });
+      
       const success = await updateUserInfo({
         name: fullName,
         email: email,
         phoneNumber: phoneNumber,
-        photoURL: profileImage ?? undefined,
+        photoURL: imageData ?? undefined,
         location,
       });
+      
+      console.log('[saveProfile] updateUserInfo returned:', success);
       
       if (success) {
         Alert.alert('Success', 'Profile updated successfully!');
@@ -81,23 +150,35 @@ export default function ClientSettings() {
         Alert.alert('Error', 'Failed to update profile. Please try again.');
       }
     } catch (error) {
+      console.error('[saveProfile] Error:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    router.replace('/login-client');
+  const handleLogout = async () => {
+    try {
+      console.log('[logout] Logging out user', user?.id, user?.role);
+      await AsyncStorage.clear();
+      useAuthStore.getState().resetUser();
+      router.replace('/');
+    } catch (error) {
+      console.error('[logout] Error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
   };
 
-  const handleAccountDeletion = async () => {
+  const handleDeleteAccount = async () => {
     try {
+      console.log('[deleteAccount] Deleting account for', user?.id, user?.role);
       await deleteAccount();
-      // Zustand is cleared in the store after successful deletion
-      router.replace('/signup-client');
+      await AsyncStorage.clear();
+      useAuthStore.getState().resetUser();
+      router.replace('/');
+      Alert.alert('Account deleted', 'Your account has been deleted.');
     } catch (error) {
+      console.error('[deleteAccount] Error:', error);
       Alert.alert('Error', 'Failed to delete account. Please try again.');
     }
   };
@@ -178,7 +259,7 @@ export default function ClientSettings() {
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
           {/* Delete Account */}
-          <TouchableOpacity style={styles.deleteButton} onPress={handleAccountDeletion}>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
             <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
             <Text style={styles.deleteText}>Delete Account</Text>
           </TouchableOpacity>

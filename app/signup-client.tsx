@@ -64,7 +64,18 @@ export default function SignupClient() {
   const router = useRouter();
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [isGoogleSignInAvailable, setIsGoogleSignInAvailable] = useState(true);
-  const {user,updateUser} = useAuthStore();
+  const {user,updateUser,isAuthenticated} = useAuthStore();
+
+  // Redirect if already authenticated as client
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'client') {
+      router.replace('/client');
+    } else if (isAuthenticated && user?.role === 'talent') {
+      // User is authenticated as talent, don't let them access client area
+      Alert.alert('Access Denied', 'You are signed in as a talent. Please log out to access client features.');
+      router.replace('/talent');
+    }
+  }, [isAuthenticated, user?.role]);
 
   // Only configure GoogleSignin on mobile
   if (Platform.OS !== 'web') {
@@ -121,27 +132,63 @@ export default function SignupClient() {
         phoneNumber: formattedPhone,
       });
 
-      await registerUser({
+      const response = await registerUser({
         fullName: values.fullName,
         email: values.email,
         phoneNumber: formattedPhone,
         password: values.password,
         role: 'client',
       });
- // grab the new user's ID
-const userId = await AsyncStorage.getItem('userId');
+      
+      // Extract Firebase UID from backend
+              const userId = response.uid || response.localId;
+      if (!userId) {
+        throw new Error('No user ID received from server');
+      }
 
-const userData = {
- id:        userId!,
-   name:      values.fullName,
-    email:     values.email,
-    photoURL:  values.photoURL,
-    role:       'client' as UserRole,
-    phoneNumber: formattedPhone,
-  };
-  console.log(userData, "userData")
-updateUser(userData)
-  router.push("/client");
+      // === STORE idToken for protected requests ===
+      if (Platform.OS === 'web') {
+        if (response.idToken) {
+          localStorage.setItem('idToken', response.idToken);
+          console.log('[signup-client] idToken stored in localStorage:', response.idToken);
+        } else if (auth.currentUser) {
+          const idToken = await auth.currentUser.getIdToken(true);
+          localStorage.setItem('idToken', idToken);
+          console.log('[signup-client] idToken stored in localStorage (from auth):', idToken);
+        }
+      } else {
+        if (response.idToken) {
+          await AsyncStorage.setItem('idToken', response.idToken);
+          console.log('[signup-client] idToken stored in AsyncStorage:', response.idToken);
+        } else if (auth.currentUser) {
+          const idToken = await auth.currentUser.getIdToken(true);
+          await AsyncStorage.setItem('idToken', idToken);
+          console.log('[signup-client] idToken stored in AsyncStorage (from auth):', idToken);
+        }
+      }
+      // === END idToken storage ===
+
+      const userData = {
+        id: userId, // Use Firebase UID from backend
+        name: response.fullName || response.displayName || response.name || values.fullName,
+        email: response.email,
+        photoURL: response.photoURL || null,
+        role: response.role || 'client',
+        phoneNumber: response.phoneNumber || '',
+        location: response.location || null,
+      };
+      console.log(userData, "userData");
+      updateUser(userData);
+      
+      // Validate UID consistency after signup
+      try {
+        const { validateUIDConsistency } = require('@/services/firebase');
+        await validateUIDConsistency();
+      } catch (validationError) {
+        console.warn('[signup-client] UID validation failed:', validationError);
+      }
+      
+      router.replace("/client");
     } catch (error: any) {
       console.error("Detailed error:", JSON.stringify(error, null, 2));
 
@@ -173,9 +220,18 @@ updateUser(userData)
     try {
       setIsSigningUp(true);
       const result = await handleGoogleAuth('client');
-      if (result.success && result.user) {
+      if (result && result.success && result.user) {
         updateUser(result.user); // Ensure sync
-        router.push('/client');
+        
+        // Validate UID consistency after Google signup
+        try {
+          const { validateUIDConsistency } = require('@/services/firebase');
+          await validateUIDConsistency();
+        } catch (validationError) {
+          console.warn('[signup-client-google] UID validation failed:', validationError);
+        }
+        
+        router.replace('/client');
       } else {
         Alert.alert('Google Signup Failed', 'Could not authenticate user.');
       }
