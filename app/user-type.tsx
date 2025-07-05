@@ -18,14 +18,18 @@ export default function UserTypeScreen() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && user?.role) {
-      
-      if (user.role === 'client') {
-        router.replace('/client');
-      } else if (user.role === 'talent') {
-        router.replace('/talent');
+    // Add a small delay to ensure root layout is mounted
+    const timer = setTimeout(() => {
+      if (isAuthenticated && user?.role) {
+        if (user.role === 'client') {
+          router.replace('/client');
+        } else if (user.role === 'talent') {
+          router.replace('/talent');
+        }
       }
-    }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [isAuthenticated, user?.role]);
 
   // Don't render if already authenticated

@@ -188,14 +188,60 @@ export const useAuthStore = create<AuthState>()(
               return false;
             }
           console.log('[updateUserInfo] Starting update for user:', user.id, user.role, 'updates:', updates);
-          // Get idToken for authorization
+          // Get idToken for authorization - improved logic for both web and mobile
           let idToken = '';
           if (Platform.OS === 'web') {
+            // For web: try localStorage first, then Firebase auth
             idToken = localStorage.getItem('idToken') || '';
-          } else if (typeof auth !== 'undefined' && auth.currentUser) {
-            idToken = await auth.currentUser.getIdToken(true);
+            console.log('[updateUserInfo] Web localStorage token check:', idToken ? 'FOUND' : 'MISSING');
+            if (idToken) {
+              console.log('[updateUserInfo] Token length:', idToken.length);
+              console.log('[updateUserInfo] Token preview:', idToken.substring(0, 20) + '...');
+              // Validate token format
+              const isValid = idToken.length > 10 && idToken.split('.').length === 3;
+              console.log('[updateUserInfo] Token format valid:', isValid);
+              if (!isValid) {
+                console.warn('[updateUserInfo] Invalid token format, trying Firebase auth');
+                idToken = ''; // Reset to try Firebase auth
+              }
+            }
+            if (!idToken && typeof auth !== 'undefined' && auth.currentUser) {
+              try {
+                idToken = await auth.currentUser.getIdToken(true);
+                // Store the fresh token
+                localStorage.setItem('idToken', idToken);
+                console.log('[updateUserInfo] Stored fresh Firebase token in localStorage');
+              } catch (tokenError) {
+                console.warn('[updateUserInfo] Failed to get Firebase token:', tokenError);
+              }
+            }
           } else {
-            idToken = await AsyncStorage.getItem('idToken') || '';
+            // For mobile: try Firebase auth first, then AsyncStorage
+            if (typeof auth !== 'undefined' && auth.currentUser) {
+              try {
+                idToken = await auth.currentUser.getIdToken(true);
+                // Store the fresh token
+                await AsyncStorage.setItem('idToken', idToken);
+                console.log('[updateUserInfo] Stored fresh Firebase token in AsyncStorage');
+              } catch (tokenError) {
+                console.warn('[updateUserInfo] Failed to get Firebase token:', tokenError);
+                // Fallback to stored token
+                idToken = await AsyncStorage.getItem('idToken') || '';
+              }
+            } else {
+              idToken = await AsyncStorage.getItem('idToken') || '';
+            }
+            console.log('[updateUserInfo] Mobile token check:', idToken ? 'FOUND' : 'MISSING');
+            if (idToken) {
+              console.log('[updateUserInfo] Mobile token length:', idToken.length);
+              // Validate token format
+              const isValid = idToken.length > 10 && idToken.split('.').length === 3;
+              console.log('[updateUserInfo] Mobile token format valid:', isValid);
+              if (!isValid) {
+                console.warn('[updateUserInfo] Invalid mobile token format, trying Firebase auth');
+                idToken = ''; // Reset to try Firebase auth
+              }
+            }
           }
           if (!idToken) {
             console.error('[updateUserInfo] No idToken found');

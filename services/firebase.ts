@@ -113,9 +113,27 @@ export const registerUser = async (userData: {
   // Extract Firebase UID from response - backend returns localId
   const userId = data.localId;
   if (userId) {
-    // Store in AsyncStorage for consistency
-    await AsyncStorage.setItem('userId', userId);
-    console.log('[registerUser] Stored Firebase UID:', userId);
+    if (Platform.OS === 'web') {
+      // For web: store in localStorage
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('userId', userId);
+        if (data.idToken) {
+          localStorage.setItem('idToken', data.idToken);
+          console.log('[registerUser] Stored Firebase UID and token in localStorage:', userId);
+        } else {
+          console.log('[registerUser] Stored Firebase UID in localStorage:', userId);
+        }
+      }
+    } else {
+      // For mobile: store in AsyncStorage
+      await AsyncStorage.setItem('userId', userId);
+      if (data.idToken) {
+        await AsyncStorage.setItem('idToken', data.idToken);
+        console.log('[registerUser] Stored Firebase UID and token in AsyncStorage:', userId);
+      } else {
+        console.log('[registerUser] Stored Firebase UID in AsyncStorage:', userId);
+      }
+    }
   } else {
     console.warn('[registerUser] No localId in response:', data);
   }
@@ -140,11 +158,25 @@ export const loginUser = async (email: string, password: string, role: string) =
   // Extract Firebase UID from response - backend returns localId
   const userId = data.localId;
   if (userId) {
-    await AsyncStorage.multiSet([
-      ['userId', userId],
-      ['idToken', data.idToken],
-    ]);
-    console.log('[loginUser] Stored Firebase UID:', userId);
+    if (Platform.OS === 'web') {
+      // For web: store in localStorage
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('userId', userId);
+        if (data.idToken) {
+          localStorage.setItem('idToken', data.idToken);
+          console.log('[loginUser] Stored Firebase UID and token in localStorage:', userId);
+        } else {
+          console.log('[loginUser] Stored Firebase UID in localStorage:', userId);
+        }
+      }
+    } else {
+      // For mobile: store in AsyncStorage
+      await AsyncStorage.multiSet([
+        ['userId', userId],
+        ['idToken', data.idToken],
+      ]);
+      console.log('[loginUser] Stored Firebase UID and token in AsyncStorage:', userId);
+    }
   } else {
     console.warn('[loginUser] No localId in response:', data);
   }

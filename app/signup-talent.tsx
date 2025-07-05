@@ -55,13 +55,18 @@ export default function SignupTalent() {
 
   // Redirect if already authenticated as talent
   useEffect(() => {
-    if (isAuthenticated && user?.role === 'talent') {
-      router.replace('/talent');
-    } else if (isAuthenticated && user?.role === 'client') {
-      // User is authenticated as client, don't let them access talent area
-      Alert.alert('Access Denied', 'You are signed in as a client. Please log out to access talent features.');
-      router.replace('/client');
-    }
+    // Add a small delay to ensure root layout is mounted
+    const timer = setTimeout(() => {
+      if (isAuthenticated && user?.role === 'talent') {
+        router.replace('/talent');
+      } else if (isAuthenticated && user?.role === 'client') {
+        // User is authenticated as client, don't let them access talent area
+        Alert.alert('Access Denied', 'You are signed in as a client. Please log out to access talent features.');
+        router.replace('/client');
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [isAuthenticated, user?.role]);
 
   // Only configure GoogleSignin on mobile
