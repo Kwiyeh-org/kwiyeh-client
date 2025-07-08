@@ -26,6 +26,7 @@ import { useAuthStore } from '@/store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import type { User } from '@/store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { showAlert, showConfirm } from '~/lib/showAlert';
 
 export default function TalentSettings() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function TalentSettings() {
   const [selectedServices, setSelectedServices] = useState<string[]>(user?.services || []);
   const [pricing, setPricing] = useState(user?.pricing || '');
   const [availability, setAvailability] = useState(user?.availability || '');
-  const [isMobile, setIsMobile] = useState(user?.isMobile || false);
+  const [isMobile, setIsMobile] = useState(typeof user?.isMobile === 'boolean' ? user.isMobile : false);
   const [isLoading, setIsLoading] = useState(false);
   const [experience, setExperience] = useState(user?.experience || '');
 
@@ -108,22 +109,19 @@ export default function TalentSettings() {
 
   const saveProfile = async () => {
     if (!fullName.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
+      showAlert('Error', 'Please enter your full name');
       return;
     }
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      showAlert('Error', 'Please enter your email');
       return;
     }
     setIsLoading(true);
     try {
       let imageData = profileImage;
-      
-      // Convert local image to base64 if it's a file URI
       if (profileImage && profileImage.startsWith('file')) {
         imageData = await imageToBase64(profileImage);
       }
-      
       const success = await updateUserInfo({
         name: fullName,
         email: email,
@@ -136,38 +134,17 @@ export default function TalentSettings() {
         isMobile,
         experience,
       });
-      
       if (success) {
-        Alert.alert(
-          'Success', 
-          'Profile updated successfully!',
-          [{ text: 'OK' }]
-        );
+        showAlert('Success', 'Profile updated successfully!');
       } else {
-        Alert.alert(
-          'Update Failed', 
-          'Unable to update your profile. Please check your connection and try again.',
-          [{ text: 'OK' }]
-        );
+        showAlert('Update Failed', 'Unable to update your profile. Please check your connection and try again.');
       }
     } catch (error) {
       console.error('[saveProfile] Error:', error);
-      Alert.alert(
-        'Error', 
-        'Failed to update profile. Please try again.',
-        [{ text: 'OK' }]
-      );
+      showAlert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Helper for confirmation
-  const confirmAction = (title: string, message: string, onConfirm: () => void) => {
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'OK', style: 'destructive', onPress: onConfirm },
-    ]);
   };
 
   const handleLogout = async () => {
@@ -186,36 +163,21 @@ export default function TalentSettings() {
   };
 
   const handleDeleteAccount = async () => {
-    Alert.alert(
+    showConfirm(
       'Delete Account',
       'Are you sure you want to delete your account? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccount();
-              await AsyncStorage.clear();
-              useAuthStore.getState().resetUser();
-              router.replace('/');
-              Alert.alert(
-                'Account Deleted', 
-                'Your account has been successfully deleted.',
-                [{ text: 'OK' }]
-              );
-            } catch (error) {
-              console.error('[deleteAccount] Error:', error);
-              Alert.alert(
-                'Delete Error', 
-                'Failed to delete account. Please try again.',
-                [{ text: 'OK' }]
-              );
-            }
-          }
+      async () => {
+        try {
+          await deleteAccount();
+          await AsyncStorage.clear();
+          useAuthStore.getState().resetUser();
+          router.replace('/');
+          showAlert('Account Deleted', 'Your account has been successfully deleted.');
+        } catch (error) {
+          console.error('[deleteAccount] Error:', error);
+          showAlert('Delete Error', 'Failed to delete account. Please try again.');
         }
-      ]
+      }
     );
   };
 

@@ -1,7 +1,7 @@
 // // app/talent/modals/talent-skillForm.tsx
 // //it's moved here to solve routing issues  that's how expo routing works
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   TouchableOpacity
 } from "react-native";
 import { useRouter } from "expo-router";
+
 import { Input } from "~/components/ui/input";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "~/components/ui/button";
@@ -19,13 +20,25 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list"; // <--- Use your constants file
 import { useAuthStore } from '@/store/authStore';
 
-export default function TalentSkillForm() {
+export default function TalentSkillForm({ onComplete }: { onComplete?: () => void }) {
   const router = useRouter();
   const updateUserInfo = useAuthStore((state) => state.updateUserInfo);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [experience, setExperience] = useState("");
   const [pricing, setPricing] = useState("");
   const [availability, setAvailability] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Only show the skill form if the user hasn't seen it before (persisted in AsyncStorage)
+  useEffect(() => {
+    (async () => {
+      const seen = await AsyncStorage.getItem('hasSeenTalentSkillForm');
+      if (seen === 'true') {
+        // Immediately route to dashboard if already seen
+        router.replace('/talent');
+      }
+    })();
+  }, []);
 
   // Multi-select toggle
   const toggleService = (service: string) => {
@@ -35,6 +48,7 @@ export default function TalentSkillForm() {
   };
 
   const handleSubmit = async () => {
+    setIsSubmitting(true);
     try {
       // Log outgoing request
       console.log('[TalentSkillForm] Submitting skill form:', { selectedServices, experience, pricing, availability });
@@ -44,14 +58,24 @@ export default function TalentSkillForm() {
         pricing,
         availability,
       });
-      if (success) {
-        router.replace("/talent");
-      } else {
-        Alert.alert("Error", "Failed to save profile data. Please try again.");
-      }
+      // Mark as seen regardless of success
+      await AsyncStorage.setItem('hasSeenTalentSkillForm', 'true');
+      if (onComplete) onComplete();
+      router.replace("/talent");
     } catch (error) {
-      Alert.alert("Error", "Failed to save profile data");
+      await AsyncStorage.setItem('hasSeenTalentSkillForm', 'true');
+      if (onComplete) onComplete();
+      router.replace("/talent");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  // Add a close/skip button for users who want to skip
+  const handleSkip = async () => {
+    await AsyncStorage.setItem('hasSeenTalentSkillForm', 'true');
+    if (onComplete) onComplete();
+    router.replace('/talent');
   };
 
   return (
@@ -133,9 +157,13 @@ export default function TalentSkillForm() {
           <Button
             className="bg-green-800 py-4 rounded-xl mt-8"
             onPress={handleSubmit}
+            disabled={isSubmitting}
           >
-            <Text style={styles.buttonText}>Complete Profile</Text>
+            <Text style={styles.buttonText}>{isSubmitting ? 'Saving...' : 'Complete Profile'}</Text>
           </Button>
+          <TouchableOpacity onPress={handleSkip} style={{ marginTop: 16, alignItems: 'center' }}>
+            <Text style={{ color: '#fff', textDecorationLine: 'underline', fontSize: 16 }}>Skip</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

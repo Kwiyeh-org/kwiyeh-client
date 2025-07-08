@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 // API Base URL
 const API_BASE_URL = Platform.OS === 'web' 
   ? 'http://localhost:8080' 
-  : 'http://192.168.208.33:8080';
+  : 'http://10.218.6.33:8080';
 
 export type UserRole = 'client' | 'talent';
 
@@ -69,30 +69,47 @@ const saveToStorage = async (user: User | null) => {
 function filterNulls(obj: any) {
   return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null));
 }
-function mapClientFields(updates: Partial<User>) {
-  return filterNulls({
-    fullName: updates.name,
-    clientImageUrl: updates.photoURL,
-    location: updates.location,
-    phoneNumber: updates.phoneNumber,
+
+// Extend Partial<User> to accept backend fields for mapping
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapClientFields(updates: Partial<User> & any) {
+  return {
+    name: updates.name || updates.fullName || updates.displayName || '',
     email: updates.email,
-    // Add more mappings as needed
-  });
+    photoURL: updates.photoURL || updates.clientImageUrl || null,
+    phoneNumber: updates.phoneNumber || '',
+    location: updates.location || null,
+    // Add any additional client fields here as needed
+  };
 }
-function mapTalentFields(updates: Partial<User>) {
-  return filterNulls({
-    fullName: updates.name,
-    talentImageUrl: updates.photoURL,
-    talentCategory: Array.isArray(updates.services) ? updates.services.join(', ') : updates.services,
-    location: updates.location,
-    phoneNumber: updates.phoneNumber,
+
+// Extend Partial<User> to accept backend fields for mapping
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapTalentFields(updates: Partial<User> & any) {
+  return {
+    name: updates.name || updates.fullName || updates.displayName || '',
     email: updates.email,
-    pricing: updates.pricing,
-    availability: updates.availability,
-    experience: updates.experience,
-    isMobile: updates.isMobile,
-    // Add more mappings as needed
-  });
+    photoURL: updates.photoURL || updates.talentImageUrl || null,
+    phoneNumber: updates.phoneNumber || '',
+    location: updates.location || null,
+    services: updates.services
+      ? Array.isArray(updates.services)
+        ? updates.services
+        : typeof updates.services === 'string'
+          ? updates.services.split(',').map((s: string) => s.trim())
+          : []
+      : updates.talentCategory
+        ? Array.isArray(updates.talentCategory)
+          ? updates.talentCategory
+          : typeof updates.talentCategory === 'string'
+            ? updates.talentCategory.split(',').map((s: string) => s.trim())
+            : []
+        : [],
+    pricing: updates.pricing || '',
+    availability: updates.availability || '',
+    experience: updates.experience || updates.talentDescription || '',
+    isMobile: typeof updates.isMobile === 'boolean' ? updates.isMobile : false,
+  };
 }
 
 type BackendImageResponse = {
@@ -107,18 +124,23 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
 
-      updateUser: (newUser) => {
-        set((state) => {
-          // Defensive: merge newUser with existing user fields
-          const prevUser = state.user || {};
-          return {
-            user: {
-              ...prevUser,
-              ...newUser,
-            },
-            isAuthenticated: true,
+      updateUser: (userData: any) => {
+        let mappedUser: User;
+        if (userData.role === 'talent') {
+          mappedUser = {
+            id: userData.id || userData.uid || userData.localId,
+            ...mapTalentFields(userData),
+            role: 'talent',
           };
-        });
+        } else {
+          mappedUser = {
+            id: userData.id || userData.uid || userData.localId,
+            ...mapClientFields(userData),
+            role: 'client',
+          };
+        }
+        set({ user: mappedUser, isAuthenticated: true });
+        saveToStorage(mappedUser);
       },
       logout: () => {
         set({ user: null, isAuthenticated: false });
@@ -126,12 +148,17 @@ export const useAuthStore = create<AuthState>()(
         console.log('[logout] User logged out');
       },
       updateProfile: (updates) => {
-        set((state) => {
-          const newUser = state.user ? { ...state.user, ...updates } : null;
-          saveToStorage(newUser);
-          console.log('[updateProfile] Profile updated:', updates);
-          return { user: newUser };
-        });
+        const { user } = get();
+        if (!user) return;
+        let mappedUpdates: Partial<User>;
+        if (user.role === 'talent') {
+          mappedUpdates = mapTalentFields(updates);
+        } else {
+          mappedUpdates = mapClientFields(updates);
+        }
+        const updatedUser = { ...user, ...mappedUpdates };
+        set({ user: updatedUser });
+        saveToStorage(updatedUser);
       },
       deleteAccount: async () => {
         try {
@@ -140,20 +167,32 @@ export const useAuthStore = create<AuthState>()(
             console.warn('[deleteAccount] No user in store');
             return false;
           }
-          // Always get the latest Firebase ID token from Firebase Auth
+          // Always get the latest Firebase ID token from Firebase Auth (web and mobile)
           let idToken = null;
           if (typeof window !== 'undefined' && window.localStorage) {
-            idToken = localStorage.getItem('idToken');
+            if (auth && auth.currentUser) {
+              try {
+                idToken = await auth.currentUser.getIdToken(true);
+                console.log('[deleteAccount] (web) Got fresh idToken from Firebase Auth:', idToken);
+              } catch (e) {
+                console.warn('[deleteAccount] (web) Failed to get idToken from Firebase Auth:', e);
+              }
+            }
+            if (!idToken) {
+              idToken = localStorage.getItem('idToken');
+              console.log('[deleteAccount] (web) Fallback to idToken from localStorage:', idToken);
+            }
           } else if (typeof auth !== 'undefined' && auth.currentUser) {
             idToken = await auth.currentUser.getIdToken(true);
+            console.log('[deleteAccount] (native) Got fresh idToken from Firebase Auth:', idToken);
           }
           if (!idToken) {
             console.warn('[deleteAccount] No ID token found');
             return false;
           }
-            const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
-              ? 'http://localhost:8080/deleteAccount'
-              : 'http://192.168.208.33:8080/deleteAccount';
+          const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
+            ? 'http://localhost:8080/deleteAccount'
+            : 'http://10.218.6.33:8080/deleteAccount';
           console.log('[deleteAccount] Sending delete request for UID:', user.id, 'role:', user.role, 'with token:', idToken);
           const response = await fetch(url, {
             method: 'DELETE',
@@ -181,170 +220,92 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       updateUserInfo: async (updates: Partial<User>) => {
+        const { user } = get();
+        if (!user) return false;
+        let mappedUpdates: Partial<User>;
+        if (user.role === 'talent') {
+          mappedUpdates = mapTalentFields(updates);
+        } else {
+          mappedUpdates = mapClientFields(updates);
+        }
+        // Always get the latest Firebase ID token from Firebase Auth
+        let idToken = null;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          idToken = localStorage.getItem('idToken');
+        } else if (typeof auth !== 'undefined' && auth.currentUser) {
+          idToken = await auth.currentUser.getIdToken(true);
+        }
+        if (!idToken) {
+          console.warn('[updateUserInfo] No ID token found');
+          return false;
+        }
+        // Prepare payload for backend
+        const payload = {
+          ...mappedUpdates,
+          uid: user.id,
+          role: user.role,
+        };
         try {
-          const user = get().user;
-          if (!user || !user.id || !user.role) {
-            console.error('[updateUserInfo] No user or missing id/role:', user);
-              return false;
-            }
-          console.log('[updateUserInfo] Starting update for user:', user.id, user.role, 'updates:', updates);
-          // Get idToken for authorization - improved logic for both web and mobile
-          let idToken = '';
-          if (Platform.OS === 'web') {
-            // For web: try localStorage first, then Firebase auth
-            idToken = localStorage.getItem('idToken') || '';
-            console.log('[updateUserInfo] Web localStorage token check:', idToken ? 'FOUND' : 'MISSING');
-            if (idToken) {
-              console.log('[updateUserInfo] Token length:', idToken.length);
-              console.log('[updateUserInfo] Token preview:', idToken.substring(0, 20) + '...');
-              // Validate token format
-              const isValid = idToken.length > 10 && idToken.split('.').length === 3;
-              console.log('[updateUserInfo] Token format valid:', isValid);
-              if (!isValid) {
-                console.warn('[updateUserInfo] Invalid token format, trying Firebase auth');
-                idToken = ''; // Reset to try Firebase auth
-              }
-            }
-            if (!idToken && typeof auth !== 'undefined' && auth.currentUser) {
-              try {
-                idToken = await auth.currentUser.getIdToken(true);
-                // Store the fresh token
-                localStorage.setItem('idToken', idToken);
-                console.log('[updateUserInfo] Stored fresh Firebase token in localStorage');
-              } catch (tokenError) {
-                console.warn('[updateUserInfo] Failed to get Firebase token:', tokenError);
-              }
-            }
-          } else {
-            // For mobile: try Firebase auth first, then AsyncStorage
-            if (typeof auth !== 'undefined' && auth.currentUser) {
-              try {
-                idToken = await auth.currentUser.getIdToken(true);
-                // Store the fresh token
-                await AsyncStorage.setItem('idToken', idToken);
-                console.log('[updateUserInfo] Stored fresh Firebase token in AsyncStorage');
-              } catch (tokenError) {
-                console.warn('[updateUserInfo] Failed to get Firebase token:', tokenError);
-                // Fallback to stored token
-                idToken = await AsyncStorage.getItem('idToken') || '';
-              }
-            } else {
-              idToken = await AsyncStorage.getItem('idToken') || '';
-            }
-            console.log('[updateUserInfo] Mobile token check:', idToken ? 'FOUND' : 'MISSING');
-            if (idToken) {
-              console.log('[updateUserInfo] Mobile token length:', idToken.length);
-              // Validate token format
-              const isValid = idToken.length > 10 && idToken.split('.').length === 3;
-              console.log('[updateUserInfo] Mobile token format valid:', isValid);
-              if (!isValid) {
-                console.warn('[updateUserInfo] Invalid mobile token format, trying Firebase auth');
-                idToken = ''; // Reset to try Firebase auth
-              }
-            }
-          }
-          if (!idToken) {
-            console.error('[updateUserInfo] No idToken found');
-            return false;
-          }
-          // Map fields based on role
-          let payload: any;
-          if (user.role === 'client') {
-            payload = mapClientFields(updates);
-          } else if (user.role === 'talent') {
-            payload = mapTalentFields(updates);
-          } else {
-            console.error('[updateUserInfo] Unknown role:', user.role);
-            return false;
-          }
-          payload.uid = user.id;
-          payload.role = user.role;
-          console.log('[updateUserInfo] Outgoing payload:', payload);
-          let response;
-          try {
-            response = await fetch(`${API_BASE_URL}/updateUserInfo`, {
-              method: 'POST',
+          const response = await fetch(`${API_BASE_URL}/updateUserInfo`, {
+            method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`,
+              'Authorization': `Bearer ${idToken}`,
             },
-              body: JSON.stringify(payload),
-            });
-          } catch (fetchError) {
-            console.error('[updateUserInfo] Fetch error:', fetchError);
-            return false;
-          }
-          console.log('[updateUserInfo] Response status:', response.status);
-          console.log('[updateUserInfo] Response headers:', Object.fromEntries(response.headers.entries()));
+            body: JSON.stringify(payload),
+          });
           const responseText = await response.text();
-          console.log('[updateUserInfo] Response text:', responseText);
-          console.log('[updateUserInfo] Response text length:', responseText.length);
-          console.log('[updateUserInfo] Response text trimmed:', responseText.trim());
           let responseData = {};
           try {
-            // Check if response is valid JSON
-            const trimmedResponse = responseText.trim();
-            if (trimmedResponse.startsWith('{') || trimmedResponse.startsWith('[')) {
-              responseData = JSON.parse(trimmedResponse);
-              console.log('[updateUserInfo] Successfully parsed JSON response:', responseData);
-            } else {
-              console.warn('[updateUserInfo] Response is not JSON, using empty object. Response:', responseText);
-              responseData = {};
+            // Try to parse JSON
+            const trimmed = responseText.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              responseData = JSON.parse(trimmed);
             }
-          } catch (parseError) {
-            console.warn('[updateUserInfo] Could not parse response as JSON:', responseText);
-            console.warn('[updateUserInfo] Parse error:', parseError);
-            responseData = {};
+          } catch (e) {
+            console.warn('[updateUserInfo] Could not parse backend response as JSON:', responseText);
           }
-          const imgData = responseData as BackendImageResponse;
-          const newPhotoURL =
-            imgData.imageUrl ||
-            imgData.clientImageUrl ||
-            imgData.talentImageUrl ||
-            updates.photoURL ||
-            user.photoURL;
-          const updatedUser = {
-            ...user,
-            ...updates,
-            ...responseData,
-            photoURL: newPhotoURL,
-          };
+          if (response.ok) {
+            // Merge backend response with current user
+            const updatedUser = { ...user, ...responseData };
             set({ user: updatedUser });
-            saveToStorage(updatedUser);
-          console.log('[updateUserInfo] Update successful. Updated user:', updatedUser);
-          console.log('[updateUserInfo] Response ok:', response.ok);
-          console.log('[updateUserInfo] Response status:', response.status);
-          return response.ok;
+            await saveToStorage(updatedUser);
+            console.log('[updateUserInfo] Update successful. Updated user:', updatedUser);
+            return true;
+          } else {
+            console.error('[updateUserInfo] Backend error:', responseText);
+            return false;
+          }
         } catch (error) {
           console.error('[updateUserInfo] Error:', error);
           return false;
         }
       },
-              validateUID: async () => {
-          try {
-            const user = get().user;
-            if (!user || !auth.currentUser) return false;
-            const firebaseUID = auth.currentUser.uid;
-            const storedUID = user.id;
-            console.log('[validateUID] Comparing UIDs - Stored:', storedUID, 'Firebase:', firebaseUID);
-            if (storedUID !== firebaseUID) {
-              console.warn('[validateUID] UID mismatch detected! Stored:', storedUID, 'Firebase:', firebaseUID);
-              const updatedUser = { ...user, id: firebaseUID };
-              set({ user: updatedUser });
-              saveToStorage(updatedUser);
+      validateUID: async () => {
+        try {
+          const user = get().user;
+          if (!user || !auth.currentUser) return false;
+          const firebaseUID = auth.currentUser.uid;
+          const storedUID = user.id;
+          console.log('[validateUID] Comparing UIDs - Stored:', storedUID, 'Firebase:', firebaseUID);
+          if (storedUID !== firebaseUID) {
+            console.warn('[validateUID] UID mismatch detected! Stored:', storedUID, 'Firebase:', firebaseUID);
+            const updatedUser = { ...user, id: firebaseUID };
+            set({ user: updatedUser });
+            saveToStorage(updatedUser);
             console.log('[validateUID] Updated user with correct Firebase UID:', updatedUser);
           }
-              return true;
+          return true;
         } catch (error) {
           console.error('[validateUID] Error:', error);
-            return false;
-          }
-        },
+          return false;
+        }
+      },
       resetUser: () => {
         set({ user: null, isAuthenticated: false });
         saveToStorage(null);
         console.log('[resetUser] User state reset');
-        },
+      },
     }),
     {
       name: 'auth-storage',

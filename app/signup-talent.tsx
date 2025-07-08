@@ -172,7 +172,9 @@ export default function SignupTalent() {
       router.replace("/talent/modals/talent-skillForm");
       
     } catch (error: any) {
-      if (error.message === "Email already in use") {
+      if (error.message === "This email is already in use for this role.") {
+        Alert.alert("Signup Failed", "This email is already in use for this role.");
+      } else if (error.message === "Email already in use") {
         Alert.alert("Signup Failed", "This email is already in use.");
       } else if (
         error.code === "NETWORK_ERROR" ||
@@ -214,7 +216,13 @@ export default function SignupTalent() {
         Alert.alert('Google Signup Failed', 'Could not authenticate user.');
       }
     } catch (error: any) {
-      Alert.alert('Google Signup Failed', error.message || 'Authentication failed');
+      if (error.message?.includes("This email is already in use for this role.")) {
+        Alert.alert('Google Signup Failed', 'This email is already in use for this role.');
+      } else if (error.message?.includes("This email is registered as a")) {
+        Alert.alert('Google Signup Failed', error.message);
+      } else {
+        Alert.alert('Google Signup Failed', error.message || 'Authentication failed');
+      }
     } finally {
       setIsSigningUp(false);
     }

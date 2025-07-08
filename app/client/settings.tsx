@@ -21,6 +21,7 @@ import LocationField from '~/components/LocationField';
 import { useAuthStore } from '@/store/authStore';
 import type { User } from '@/store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { showAlert, showConfirm } from '~/lib/showAlert';
 
 export default function ClientSettings() {
   const router = useRouter();
@@ -102,11 +103,11 @@ export default function ClientSettings() {
 
   const saveProfile = async () => {
     if (!fullName.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
+      showAlert('Error', 'Please enter your full name');
       return;
     }
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      showAlert('Error', 'Please enter your email');
       return;
     }
     setIsSaving(true);
@@ -127,25 +128,13 @@ export default function ClientSettings() {
       });
       
       if (success) {
-        Alert.alert(
-          'Success', 
-          'Profile updated successfully!',
-          [{ text: 'OK' }]
-        );
+        showAlert('Success', 'Profile updated successfully!');
       } else {
-        Alert.alert(
-          'Update Failed', 
-          'Unable to update your profile. Please check your connection and try again.',
-          [{ text: 'OK' }]
-        );
+        showAlert('Update Failed', 'Unable to update your profile. Please check your connection and try again.');
       }
     } catch (error) {
       console.error('[saveProfile] Error:', error);
-      Alert.alert(
-        'Error', 
-        'Failed to update profile. Please try again.',
-        [{ text: 'OK' }]
-      );
+      showAlert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -167,36 +156,21 @@ export default function ClientSettings() {
   };
 
   const handleDeleteAccount = async () => {
-    Alert.alert(
+    showConfirm(
       'Delete Account',
       'Are you sure you want to delete your account? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccount();
-              await AsyncStorage.clear();
-              useAuthStore.getState().resetUser();
-              router.replace('/');
-              Alert.alert(
-                'Account Deleted', 
-                'Your account has been successfully deleted.',
-                [{ text: 'OK' }]
-              );
-            } catch (error) {
-              console.error('[deleteAccount] Error:', error);
-              Alert.alert(
-                'Delete Error', 
-                'Failed to delete account. Please try again.',
-                [{ text: 'OK' }]
-              );
-            }
-          }
+      async () => {
+        try {
+          await deleteAccount();
+          await AsyncStorage.clear();
+          useAuthStore.getState().resetUser();
+          router.replace('/');
+          showAlert('Account Deleted', 'Your account has been successfully deleted.');
+        } catch (error) {
+          console.error('[deleteAccount] Error:', error);
+          showAlert('Delete Error', 'Failed to delete account. Please try again.');
         }
-      ]
+      }
     );
   };
 

@@ -12,7 +12,7 @@ import { auth } from './firebaseConfig';
 const API_BASE_URL =
   Platform.OS === 'web'
     ? 'http://localhost:8080'
-    : 'http://192.168.208.33:8080';
+    : 'http://10.218.6.33:8080';
 
 // Helper function to decode JWT token (for debugging)
 function decodeJWT(token: string) {
@@ -120,11 +120,15 @@ export async function handleGoogleAuth(role: 'client' | 'talent') {
       const decodedToken = decodeJWT(googleIdToken);
       console.log('[handleGoogleAuth] (web) Decoded Google token payload:', decodedToken);
       
-      uid = result.user.uid;
+      // Web: Now sign in with credential like mobile to get complete user data
+      const credential = GoogleAuthProvider.credential(googleIdToken);
+      const userCred = await signInWithCredential(auth, credential);
+      
+      uid = userCred.user.uid;
       profile = {
-        name: result.user.displayName || '',
-        photoURL: result.user.photoURL || null,
-        email: result.user.email || '',
+        name: userCred.user.displayName || '',
+        photoURL: userCred.user.photoURL || null,
+        email: userCred.user.email || '',
       };
       
       idToken = googleIdToken;
@@ -205,18 +209,34 @@ export async function handleGoogleAuth(role: 'client' | 'talent') {
       console.log('[handleGoogleAuth] Backend token preview:', data.token?.substring(0, 20) + '...');
     }
     
-    const userObj = {
-      id: data.uid || data.localId || uid,
-      name: data.fullName || data.displayName || data.name || profile.name || '',
-      email: data.email || profile.email || '',
-      photoURL: data.photoURL || profile.photoURL || null,
+    // Update user state with the response data
+    console.log('[handleGoogleAuth] Backend response name fields:', {
+      displayName: data.displayName,
+      fullName: data.fullName,
+      name: data.name
+    });
+    
+    const userData = {
+      id: data.uid || data.localId,
+      name: data.displayName || data.fullName || data.name || profile.name || '',
+      email: data.email,
+      photoURL: role === 'talent' ? (data.talentImageUrl || data.photoURL) : (data.clientImageUrl || data.photoURL),
       role: data.role || role,
       phoneNumber: data.phoneNumber || '',
       location: data.location || null,
+      // Talent-specific fields
+      services: data.talentCategory ? data.talentCategory.split(', ') : [],
+      pricing: data.pricing || '',
+      availability: data.availability || '',
+      experience: data.experience || '',
+      isMobile: typeof data.isMobile === 'boolean' ? data.isMobile : false,
     };
+
+    console.log('[handleGoogleAuth] Final user data to update:', userData);
+    useAuthStore.getState().updateUser(userData);
     
     // Store UID in AsyncStorage for consistency
-    await storeUserId(userObj.id);
+    await storeUserId(userData.id);
     
     // === STORE idToken for protected requests ===
     console.log('[handleGoogleAuth] Starting token storage...');
@@ -294,10 +314,8 @@ export async function handleGoogleAuth(role: 'client' | 'talent') {
       }
     }
     
-    useAuthStore.getState().updateUser(userObj);
-    
-    console.log('[handleGoogleAuth] Google Auth result:', { success: true, user: userObj });
-    return { success: true, user: userObj };
+    console.log('[handleGoogleAuth] Google Auth result:', { success: true, user: userData });
+    return { success: true, user: userData };
   } catch (err: any) {
     // Log the backend error response for debugging
     if (err?.response) {

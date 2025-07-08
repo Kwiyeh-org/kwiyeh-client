@@ -91,7 +91,7 @@ export default function Login() {
         id: userId, // Use Firebase UID from backend
         name: data.fullName || data.displayName || data.name || '',
         email: data.email,
-        photoURL: data.photoURL || null,
+        photoURL: data.clientImageUrl || data.photoURL || null,
         role: data.role || 'client',
         phoneNumber: data.phoneNumber || '',
         location: data.location || null,
@@ -100,7 +100,7 @@ export default function Login() {
         id: userId,
         name: data.fullName || data.displayName || data.name || '',
         email: data.email,
-        photoURL: data.photoURL || null,
+        photoURL: data.clientImageUrl || data.photoURL || null,
         role: data.role || 'client',
         phoneNumber: data.phoneNumber || '',
         location: data.location || null,
@@ -123,7 +123,9 @@ export default function Login() {
       console.error("Login error details:", JSON.stringify(error, null, 2));
       console.log('[login-client] Login error:', error);
 
-      if (error.response?.status === 401) {
+      if (error.message?.includes("This email is registered as a")) {
+        Alert.alert("Login Failed", error.message);
+      } else if (error.response?.status === 401) {
         Alert.alert("Login Failed", "Invalid email or password.");
       } else if (
         error.code === "NETWORK_ERROR" ||
@@ -185,7 +187,13 @@ export default function Login() {
         console.log('[login-client] Google login failed: No user in result');
       }
     } catch (error: any) {
-      Alert.alert('Google Login Failed', error.message || 'Authentication failed');
+      if (error.message?.includes("This email is already in use for this role.")) {
+        Alert.alert('Google Login Failed', 'This email is already in use for this role.');
+      } else if (error.message?.includes("This email is registered as a")) {
+        Alert.alert('Google Login Failed', error.message);
+      } else {
+        Alert.alert('Google Login Failed', error.message || 'Authentication failed');
+      }
       console.error('[login-client] Google login error:', error);
     } finally {
       setIsLoggingIn(false);

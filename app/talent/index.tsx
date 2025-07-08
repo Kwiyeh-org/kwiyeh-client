@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   ScrollView,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FontAwesome, Feather, Ionicons } from '@expo/vector-icons';
@@ -26,24 +27,30 @@ export default function TalentDashboard() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState('community');
+  const [showSkillForm, setShowSkillForm] = useState(false);
   
   const { user, isAuthenticated } = useAuthStore();
-  const userName = user?.name || 'Talent';
-  const profileImage = user?.photoURL || null;
+  // Use type assertion to allow backend fields for robust fallback
+  const userAny = user as any;
+  const userName = userAny?.name || userAny?.fullName || userAny?.displayName || 'Talent';
+  const profileImage = userAny?.photoURL || userAny?.talentImageUrl || null;
   
   // Dynamic profile completion calculation
   const profileFields = [
-    user?.name,
-    user?.photoURL,
-    user?.location?.address,
-    user?.services && user.services.length > 0,
-    user?.pricing,
-    user?.availability,
-    user?.experience,
-    typeof user?.isMobile === 'boolean',
+    userAny?.name || userAny?.fullName || userAny?.displayName,
+    userAny?.photoURL || userAny?.talentImageUrl,
+    userAny?.location?.address,
+    userAny?.services && userAny.services.length > 0,
+    userAny?.pricing,
+    userAny?.availability,
+    userAny?.experience || userAny?.talentDescription,
+    typeof userAny?.isMobile === 'boolean',
   ];
   const filledFields = profileFields.filter(Boolean).length;
   const profileCompletion = Math.round((filledFields / profileFields.length) * 100);
+
+  // Check if user is new (has incomplete profile)
+  const isNewUser = profileCompletion < 50;
 
   const isWeb = Platform.OS === 'web';
   const headerHeight = isWeb ? Math.min(220, height * 0.3) : 220; // Increased height
@@ -98,6 +105,13 @@ export default function TalentDashboard() {
       router.replace('/login-talent');
     }
   }, [isAuthenticated, user?.role]);
+
+  // Show skill form for new users
+  // useEffect(() => {
+  //   if (isAuthenticated && user?.role === 'talent' && isNewUser) {
+  //     setShowSkillForm(true);
+  //   }
+  // }, [isAuthenticated, user?.role, isNewUser]);
 
   // Don't render anything if not authenticated as talent
   if (!isAuthenticated || user?.role !== 'talent') {
@@ -268,6 +282,26 @@ export default function TalentDashboard() {
         {/* Content Area */}
         <View style={styles.contentArea}>{renderTabContent()}</View>
       </ScrollView>
+
+      {/* Talent Skill Form Modal */}
+      <Modal
+        visible={showSkillForm}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowSkillForm(false)}
+      >
+        <View style={{ flex: 1 }}>
+          {/* Import and render the skill form */}
+          {(() => {
+            const TalentSkillForm = require('./modals/talent-skillForm').default;
+            return (
+              <TalentSkillForm 
+                onComplete={() => setShowSkillForm(false)}
+              />
+            );
+          })()}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
