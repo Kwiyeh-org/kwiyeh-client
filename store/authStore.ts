@@ -225,6 +225,8 @@ export const useAuthStore = create<AuthState>()(
         let mappedUpdates: Partial<User>;
         if (user.role === 'talent') {
           mappedUpdates = mapTalentFields(updates);
+          console.log('[updateUserInfo] Talent updates:', updates);
+          console.log('[updateUserInfo] Mapped talent updates:', mappedUpdates);
         } else {
           mappedUpdates = mapClientFields(updates);
         }
@@ -266,11 +268,13 @@ export const useAuthStore = create<AuthState>()(
             console.warn('[updateUserInfo] Could not parse backend response as JSON:', responseText);
           }
           if (response.ok) {
-            // Merge backend response with current user
-            const updatedUser = { ...user, ...responseData };
+            // Merge updates with current user and any backend response data
+            // This ensures all updated fields are properly reflected in the UI
+            const updatedUser = { ...user, ...mappedUpdates, ...responseData };
             set({ user: updatedUser });
             await saveToStorage(updatedUser);
-            console.log('[updateUserInfo] Update successful. Updated user:', updatedUser);
+            console.log('[updateUserInfo] Backend response data:', responseData);
+            console.log('[updateUserInfo] Final updated user:', updatedUser);
             return true;
           } else {
             console.error('[updateUserInfo] Backend error:', responseText);

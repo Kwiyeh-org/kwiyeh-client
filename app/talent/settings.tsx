@@ -66,6 +66,24 @@ export default function TalentSettings() {
     })();
   }, []);
 
+  // Update form fields when user data changes
+  useEffect(() => {
+    if (user) {
+      // Use the same fallback logic as the dashboard
+      const userAny = user as any;
+      setFullName(userAny?.name || userAny?.fullName || userAny?.displayName || '');
+      setEmail(userAny?.email || '');
+      setPhoneNumber(userAny?.phoneNumber || '');
+      setProfileImage(userAny?.photoURL || userAny?.talentImageUrl || null);
+      setLocation(userAny?.location);
+      setSelectedServices(userAny?.services || []);
+      setPricing(userAny?.pricing || '');
+      setAvailability(userAny?.availability || '');
+      setIsMobile(typeof userAny?.isMobile === 'boolean' ? userAny.isMobile : false);
+      setExperience(userAny?.experience || userAny?.talentDescription || '');
+    }
+  }, [user]);
+
   if (!user || !isAuthenticated || user.role !== 'talent') {
     return null;
   }
@@ -122,7 +140,8 @@ export default function TalentSettings() {
       if (profileImage && profileImage.startsWith('file')) {
         imageData = await imageToBase64(profileImage);
       }
-      const success = await updateUserInfo({
+      
+      const updateData = {
         name: fullName,
         email: email,
         phoneNumber: phoneNumber,
@@ -133,7 +152,16 @@ export default function TalentSettings() {
         availability,
         isMobile,
         experience,
-      });
+      };
+      
+      console.log('[talent-settings] Sending update data:', updateData);
+      console.log('[talent-settings] Current user before update:', user);
+      
+      const success = await updateUserInfo(updateData);
+      
+      console.log('[talent-settings] Update result:', success);
+      console.log('[talent-settings] User after update:', useAuthStore.getState().user);
+      
       if (success) {
         showAlert('Success', 'Profile updated successfully!');
       } else {

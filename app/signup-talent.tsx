@@ -211,7 +211,8 @@ export default function SignupTalent() {
           console.warn('[signup-talent-google] UID validation failed:', validationError);
         }
         
-        router.replace('/talent/modals/talent-skillForm');
+        // Google talent users go directly to dashboard, never see skill form
+        router.replace('/talent');
       } else {
         Alert.alert('Google Signup Failed', 'Could not authenticate user.');
       }
