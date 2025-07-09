@@ -19,11 +19,9 @@ import { Button } from "~/components/ui/button";
 import { Rating } from "react-native-ratings";
 import { SERVICES_CATEGORIES } from "~/constants/skill-list";
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { locationService, type LocationData } from "~/services/location";
 import CustomMapView, { Marker } from "../../components/CustomMapView";
-import { getDatabase, ref, onValue } from "firebase/database";
-import { app } from "~/services/firebaseConfig";
+import { searchTalentsByService } from '~/services/talentSearch';
 
 interface Talent {
   id: string;
@@ -45,35 +43,45 @@ interface Talent {
 }
 
 export default function SearchTalent() {
-  const [talents, setTalents] = useState<Talent[]>([]);
-  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [talents, setTalents] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [service, setService] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [showRatingFilter, setShowRatingFilter] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // Remove Firebase talentLocations logic
+  // Only load client location for map pin
   useEffect(() => {
-    // Listen to Firebase talentLocations
-    const db = getDatabase(app);
-    const unsub = onValue(ref(db, "talentLocations"), (snapshot) => {
-      const val = snapshot.val() || {};
-      setTalents(Object.entries(val).map(([id, data]: any) => ({ id, ...data })));
-    });
-    // Load client location for map pin
     (async () => {
       const userLoc = await locationService.getUserLocation(false);
       setUserLocation(userLoc);
     })();
-    return () => unsub();
   }, []);
 
-  // Filter talents by both service and rating
+  // Fetch talents when a service is selected
+  const handleServiceClick = async (serviceType: string) => {
+    setService(prev => prev === serviceType ? null : serviceType);
+    if (serviceType !== service) {
+      setLoading(true);
+      try {
+        const results = await searchTalentsByService(serviceType);
+        setTalents(results);
+      } catch (e) {
+        setTalents([]);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setTalents([]); // Clear results if deselecting
+    }
+  };
+
+  // Filter talents by both service and rating (if needed)
   const filteredTalents = talents.filter((t) => {
-    const serviceMatch = !service || 
-      (Array.isArray(t.services) && t.services.includes(service));
-    const ratingMatch = !selectedRating || 
-      (t.rating && Math.floor(t.rating) >= selectedRating);
-    return serviceMatch && ratingMatch;
+    const ratingMatch = !selectedRating || (t.rating && Math.floor(t.rating) >= selectedRating);
+    return ratingMatch;
   });
 
   // Rating filter component
@@ -97,14 +105,14 @@ export default function SearchTalent() {
   );
 
   // Enhanced Talent Card
-  const TalentCard = ({ talent }: { talent: Talent }) => (
+  const TalentCard = ({ talent }: { talent: any }) => (
     <View style={styles.talentCard}>
       <View style={styles.cardHeader}>
         <View style={styles.profileSection}>
           <View style={styles.profileImage}>
-            {talent.profileImage ? (
+            {talent.talentImageUrl || talent.photoURL ? (
               <Image
-                source={{ uri: talent.profileImage }}
+                source={{ uri: talent.talentImageUrl || talent.photoURL }}
                 style={styles.profileImg}
                 resizeMode="cover"
               />
@@ -113,14 +121,7 @@ export default function SearchTalent() {
             )}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.talentName}>{talent.name}</Text>
-            <Rating
-              type="custom"
-              readonly
-              startingValue={talent.rating || 0}
-              imageSize={16}
-              style={{ alignSelf: 'flex-start', marginVertical: 4 }}
-            />
+            <Text style={styles.talentName}>{talent.fullName || talent.name}</Text>
             <Text style={styles.serviceText}>
               {Array.isArray(talent.services)
                 ? talent.services.join(", ")
@@ -128,20 +129,14 @@ export default function SearchTalent() {
             </Text>
           </View>
         </View>
-        {talent.isMoving && (
-          <View style={styles.mobileBadge}>
-            <Ionicons name="car" size={14} color="#fff" />
-            <Text style={styles.mobileText}>Mobile</Text>
-          </View>
-        )}
       </View>
 
-      <View style={styles.locationSection}>
-        <Ionicons name="location" size={16} color="#666" />
-        <Text style={styles.locationText}>
-          {talent.address || talent.location?.address}
-        </Text>
-      </View>
+      {talent.location && (
+        <View style={styles.locationSection}>
+          <Ionicons name="location" size={16} color="#666" />
+          <Text style={styles.locationText}>{talent.location}</Text>
+        </View>
+      )}
 
       {talent.availability && (
         <View style={styles.availabilitySection}>
@@ -158,14 +153,14 @@ export default function SearchTalent() {
       )}
 
       <View style={styles.actionButtons}>
-        <Button 
+        <Button
           style={styles.bookButton}
           onPress={() => {/* Handle booking */}}
         >
           <Ionicons name="calendar" size={20} color="#fff" />
           <Text style={styles.buttonText}>Book</Text>
         </Button>
-        <Button 
+        <Button
           style={styles.messageButton}
           onPress={() => {/* Handle messaging */}}
         >
@@ -179,7 +174,9 @@ export default function SearchTalent() {
   // List View for Talents
   const renderList = () => (
     <ScrollView style={styles.listContainer}>
-      {filteredTalents.length === 0 ? (
+      {loading ? (
+        <Text style={styles.noResults}>Loading talents...</Text>
+      ) : filteredTalents.length === 0 ? (
         <Text style={styles.noResults}>No talents found.</Text>
       ) : (
         filteredTalents.map((talent) => (
@@ -266,7 +263,7 @@ export default function SearchTalent() {
           cat.services.map((type) => (
             <TouchableOpacity
               key={type}
-              onPress={() => setService((prev) => (prev === type ? null : type))}
+              onPress={() => handleServiceClick(type)}
               style={[
                 styles.serviceChip,
                 service === type && styles.activeServiceChip,

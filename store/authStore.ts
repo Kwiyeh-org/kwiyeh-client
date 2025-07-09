@@ -179,7 +179,7 @@ export const useAuthStore = create<AuthState>()(
               }
             }
             if (!idToken) {
-              idToken = localStorage.getItem('idToken');
+            idToken = localStorage.getItem('idToken');
               console.log('[deleteAccount] (web) Fallback to idToken from localStorage:', idToken);
             }
           } else if (typeof auth !== 'undefined' && auth.currentUser) {
@@ -190,9 +190,9 @@ export const useAuthStore = create<AuthState>()(
             console.warn('[deleteAccount] No ID token found');
             return false;
           }
-          const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
-            ? 'http://localhost:8080/deleteAccount'
-            : 'http://10.218.6.33:8080/deleteAccount';
+            const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
+              ? 'http://localhost:8080/deleteAccount'
+              : 'http://10.218.6.33:8080/deleteAccount';
           console.log('[deleteAccount] Sending delete request for UID:', user.id, 'role:', user.role, 'with token:', idToken);
           const response = await fetch(url, {
             method: 'DELETE',

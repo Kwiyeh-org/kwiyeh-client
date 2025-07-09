@@ -61,7 +61,7 @@ export default function TalentSkillForm({ onComplete }: { onComplete?: () => voi
       // Mark as seen regardless of success
       await AsyncStorage.setItem('hasSeenTalentSkillForm', 'true');
       if (onComplete) onComplete();
-      router.replace("/talent");
+        router.replace("/talent");
     } catch (error) {
       await AsyncStorage.setItem('hasSeenTalentSkillForm', 'true');
       if (onComplete) onComplete();
