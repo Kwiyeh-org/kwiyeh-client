@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 // API Base URL
 const API_BASE_URL = Platform.OS === 'web' 
   ? 'http://localhost:8080' 
-  : 'http://10.218.6.33:8080';
+  : 'http://10.40.197.33:8080';
 
 export type UserRole = 'client' | 'talent';
 
@@ -43,6 +43,8 @@ interface AuthState {
   updateUserInfo: (updates: Partial<User>) => Promise<boolean>;
   validateUID: () => Promise<boolean>;
   resetUser: () => void;
+  hydrated: boolean;
+  setHydrated: (v: boolean) => void;
 }
 
 // === ENFORCE STRICT UID/ROLE SEPARATION, ROBUST LOGGING, AND CORRECT TOKEN HANDLING ===
@@ -118,11 +120,36 @@ type BackendImageResponse = {
   talentImageUrl?: string;
 };
 
+// Helper to always get a fresh ID token
+async function getIdToken() {
+  let idToken = null;
+  if (auth && auth.currentUser) {
+    try {
+      idToken = await auth.currentUser.getIdToken(true);
+    } catch (e) {
+      console.warn('[getIdToken] Failed to get from Firebase Auth:', e);
+    }
+  }
+  if (!idToken && typeof window !== 'undefined' && window.localStorage) {
+    idToken = localStorage.getItem('idToken');
+  } else if (!idToken) {
+    try {
+      idToken = await AsyncStorage.getItem('idToken');
+    } catch {}
+  }
+  if (!idToken) {
+    throw new Error('No ID token found. Please log in again.');
+  }
+  return idToken;
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
+      hydrated: false,
+      setHydrated: (v: boolean) => set({ hydrated: v }),
 
       updateUser: (userData: any) => {
         let mappedUser: User;
@@ -167,38 +194,29 @@ export const useAuthStore = create<AuthState>()(
             console.warn('[deleteAccount] No user in store');
             return false;
           }
-          // Always get the latest Firebase ID token from Firebase Auth (web and mobile)
-          let idToken = null;
-          if (typeof window !== 'undefined' && window.localStorage) {
-            if (auth && auth.currentUser) {
-              try {
-                idToken = await auth.currentUser.getIdToken(true);
-                console.log('[deleteAccount] (web) Got fresh idToken from Firebase Auth:', idToken);
-              } catch (e) {
-                console.warn('[deleteAccount] (web) Failed to get idToken from Firebase Auth:', e);
-              }
-            }
-            if (!idToken) {
-            idToken = localStorage.getItem('idToken');
-              console.log('[deleteAccount] (web) Fallback to idToken from localStorage:', idToken);
-            }
-          } else if (typeof auth !== 'undefined' && auth.currentUser) {
-            idToken = await auth.currentUser.getIdToken(true);
-            console.log('[deleteAccount] (native) Got fresh idToken from Firebase Auth:', idToken);
-          }
-          if (!idToken) {
-            console.warn('[deleteAccount] No ID token found');
+          let idToken;
+          try {
+            idToken = await getIdToken();
+          } catch (e) {
+            // Assuming showAlert is defined elsewhere or will be added.
+            // For now, just log the error.
+            console.error('[deleteAccount] Error getting ID token:', e);
             return false;
           }
-            const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
-              ? 'http://localhost:8080/deleteAccount'
-              : 'http://10.218.6.33:8080/deleteAccount';
+          const url = (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')
+            ? 'http://localhost:8080/deleteAccount'
+            : 'http://10.40.197.33/deleteAccount';
           console.log('[deleteAccount] Sending delete request for UID:', user.id, 'role:', user.role, 'with token:', idToken);
           const response = await fetch(url, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${idToken}` },
           });
-          const data = await response.text();
+          let data;
+          try {
+            data = await response.json();
+          } catch (e) {
+            data = { error: await response.text() };
+          }
           console.log('[deleteAccount] Backend response:', data);
           if (response.ok) {
             set({ user: null, isAuthenticated: false });
@@ -208,7 +226,6 @@ export const useAuthStore = create<AuthState>()(
             } else {
               await AsyncStorage.removeItem('idToken');
             }
-            console.log('[deleteAccount] Account deleted and state cleared');
             return true;
           } else {
             console.error('[deleteAccount] Backend error:', data);
@@ -230,18 +247,15 @@ export const useAuthStore = create<AuthState>()(
         } else {
           mappedUpdates = mapClientFields(updates);
         }
-        // Always get the latest Firebase ID token from Firebase Auth
-        let idToken = null;
-        if (typeof window !== 'undefined' && window.localStorage) {
-          idToken = localStorage.getItem('idToken');
-        } else if (typeof auth !== 'undefined' && auth.currentUser) {
-          idToken = await auth.currentUser.getIdToken(true);
-        }
-        if (!idToken) {
-          console.warn('[updateUserInfo] No ID token found');
+        let idToken;
+        try {
+          idToken = await getIdToken();
+        } catch (e) {
+          // Assuming showAlert is defined elsewhere or will be added.
+          // For now, just log the error.
+          console.error('[updateUserInfo] Error getting ID token:', e);
           return false;
         }
-        // Prepare payload for backend
         const payload = {
           ...mappedUpdates,
           uid: user.id,
@@ -256,28 +270,21 @@ export const useAuthStore = create<AuthState>()(
             },
             body: JSON.stringify(payload),
           });
-          const responseText = await response.text();
-          let responseData = {};
+          let responseData;
           try {
-            // Try to parse JSON
-            const trimmed = responseText.trim();
-            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-              responseData = JSON.parse(trimmed);
-            }
+            responseData = await response.json(); // Only read once
           } catch (e) {
-            console.warn('[updateUserInfo] Could not parse backend response as JSON:', responseText);
+            responseData = { error: 'Failed to parse backend response' };
           }
           if (response.ok) {
-            // Merge updates with current user and any backend response data
-            // This ensures all updated fields are properly reflected in the UI
+            // Merge backend response into user state
             const updatedUser = { ...user, ...mappedUpdates, ...responseData };
+            if (responseData.fullName) updatedUser.name = responseData.fullName;
             set({ user: updatedUser });
             await saveToStorage(updatedUser);
-            console.log('[updateUserInfo] Backend response data:', responseData);
-            console.log('[updateUserInfo] Final updated user:', updatedUser);
             return true;
           } else {
-            console.error('[updateUserInfo] Backend error:', responseText);
+            console.error('[updateUserInfo] Backend error:', responseData);
             return false;
           }
         } catch (error) {
@@ -314,6 +321,9 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+      },
     }
   )
 );

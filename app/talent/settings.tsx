@@ -336,8 +336,8 @@ export default function TalentSettings() {
               style={styles.textInput}
               value={pricing}
               onChangeText={setPricing}
-              placeholder="e.g., $50/hour or Negotiable"
-              keyboardType="numeric"
+              placeholder="e.g., 2000 CFA per service, Negotiable, or Package rates"
+              // Remove keyboardType to allow all input
             />
           </View>
         </View>

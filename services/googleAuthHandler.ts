@@ -12,7 +12,7 @@ import { auth } from './firebaseConfig';
 const API_BASE_URL =
   Platform.OS === 'web'
     ? 'http://localhost:8080'
-    : 'http://10.218.6.33:8080';
+    : 'http://10.40.197.33:8080';
 
 // Helper function to decode JWT token (for debugging)
 function decodeJWT(token: string) {

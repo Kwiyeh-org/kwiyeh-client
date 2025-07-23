@@ -138,9 +138,9 @@ export default function TalentSkillForm({ onComplete }: { onComplete?: () => voi
             <Input
               value={pricing}
               onChangeText={setPricing}
-              placeholder="e.g., $50/hour, Packages starting at $200"
+              placeholder="e.g., 2000 CFA per service, Negotiable, or Package rates"
               className="bg-white rounded-xl px-4 py-3 text-base border border-gray-300"
-              keyboardType="default"
+              // Remove keyboardType to allow all input
             />
           </View>
 

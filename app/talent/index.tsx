@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { FontAwesome, Feather, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TABS = [
   { key: 'community', label: 'Community' },
@@ -29,7 +30,7 @@ export default function TalentDashboard() {
   const [activeTab, setActiveTab] = useState('community');
   const [showSkillForm, setShowSkillForm] = useState(false);
   
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, hydrated } = useAuthStore();
   // Use type assertion to allow backend fields for robust fallback
   const userAny = user as any;
   const userName = userAny?.name || userAny?.fullName || userAny?.displayName || 'Talent';
@@ -93,25 +94,30 @@ export default function TalentDashboard() {
 
   // Role-based access control
   useEffect(() => {
+    if (!hydrated) return; // Wait for hydration!
     if (isAuthenticated && user?.role !== 'talent') {
       if (user?.role === 'client') {
         router.replace('/client');
       } else {
-        // User is authenticated but has no role or invalid role
         router.replace('/user-type');
       }
     } else if (!isAuthenticated) {
-      // Not authenticated, redirect to login
       router.replace('/login-talent');
     }
-  }, [isAuthenticated, user?.role]);
+  }, [hydrated, isAuthenticated, user?.role]);
 
-  // Show skill form for new users
-  // useEffect(() => {
-  //   if (isAuthenticated && user?.role === 'talent' && isNewUser) {
-  //     setShowSkillForm(true);
-  //   }
-  // }, [isAuthenticated, user?.role, isNewUser]);
+  // Show skill form for new users (centralized here)
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'talent') {
+      AsyncStorage.getItem('hasSeenTalentSkillForm').then(seen => {
+        if (seen !== 'true') {
+          setShowSkillForm(true);
+        } else {
+          setShowSkillForm(false);
+        }
+      });
+    }
+  }, [isAuthenticated, user?.role]);
 
   // Don't render anything if not authenticated as talent
   if (!isAuthenticated || user?.role !== 'talent') {
@@ -291,7 +297,6 @@ export default function TalentDashboard() {
         onRequestClose={() => setShowSkillForm(false)}
       >
         <View style={{ flex: 1 }}>
-          {/* Import and render the skill form */}
           {(() => {
             const TalentSkillForm = require('./modals/talent-skillForm').default;
             return (

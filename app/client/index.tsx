@@ -17,6 +17,7 @@ import Bookings from "./bookings";
 import SearchTalent from "./search-talent";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Messages from "./messages";
+import { useEffect } from "react";
 
 const TABS = [
   { key: "community", label: "Community" },
@@ -30,12 +31,25 @@ export default function ClientDashboard() {
   const { width, height } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<string>("community");
 
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, hydrated } = useAuthStore();
   const userName = user?.name || "Client";
   const profileImage = user?.photoURL || null;
 
   const isWeb = Platform.OS === 'web';
   const headerHeight = isWeb ? Math.min(220, height * 0.3) : 220;
+
+  useEffect(() => {
+    if (!hydrated) return; // Wait for hydration!
+    if (isAuthenticated && user?.role !== 'client') {
+      if (user?.role === 'talent') {
+        router.replace('/talent');
+      } else {
+        router.replace('/user-type');
+      }
+    } else if (!isAuthenticated) {
+      router.replace('/login-client');
+    }
+  }, [hydrated, isAuthenticated, user?.role]);
 
   // Mock data for trending talents
   const trendingTalents = [
